@@ -14,11 +14,13 @@ import os
 from pathlib import Path
 from dotenv import load_dotenv
 
-# Load environment variables from .env file (for local development)
-load_dotenv()
-
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+# Load environment variables from .env file (for local development only)
+# On Vercel, env vars are set directly — no .env file exists
+if (BASE_DIR / '.env').exists():
+    load_dotenv()
 
 
 # SECURITY WARNING: keep the secret key used in production secret!
@@ -47,6 +49,20 @@ if vercel_url and vercel_url not in ALLOWED_HOSTS:
 if ON_VERCEL:
     ALLOWED_HOSTS.append('*.vercel.app')
 
+# CSRF Trusted Origins — required for POST requests on HTTPS/production
+# Django needs the full origin (protocol + domain) to accept CSRF tokens
+csrf_trusted_origins = []
+if vercel_url:
+    csrf_trusted_origins.append(f'https://{vercel_url}')
+# Also allow any .vercel.app subdomain for preview deployments
+if ON_VERCEL:
+    csrf_trusted_origins.append('https://*.vercel.app')
+# Allow custom origins from env var
+custom_origins = os.getenv('CSRF_TRUSTED_ORIGINS', '')
+if custom_origins:
+    csrf_trusted_origins.extend([o.strip() for o in custom_origins.split(',') if o.strip()])
+CSRF_TRUSTED_ORIGINS = csrf_trusted_origins
+
 # Security settings for production — only apply when DEBUG=False (production)
 if not DEBUG:
     SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
@@ -55,12 +71,16 @@ if not DEBUG:
     SECURE_SSL_REDIRECT = False if ON_VERCEL else os.getenv('SECURE_SSL_REDIRECT', 'True').lower() in ('true', '1', 'yes')
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
+    SESSION_COOKIE_SAMESITE = 'Lax'
+    CSRF_COOKIE_SAMESITE = 'Lax'
     SECURE_HSTS_SECONDS = 31536000
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
     SECURE_HSTS_PRELOAD = True
 else:
     SESSION_COOKIE_SECURE = False
     CSRF_COOKIE_SECURE = False
+    SESSION_COOKIE_SAMESITE = 'Lax'
+    CSRF_COOKIE_SAMESITE = 'Lax'
     SECURE_HSTS_SECONDS = 0
 
 
