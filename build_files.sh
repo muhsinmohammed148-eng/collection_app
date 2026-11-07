@@ -3,8 +3,13 @@
 # Exit on error
 set -e
 
-# Install dependencies (use --break-system-packages for uv-managed Python on Vercel)
-pip install --break-system-packages -r requirements.txt
+# Install dependencies
+# Use uv pip if available (Vercel uses uv-managed Python), otherwise fall back to pip with --break-system-packages
+if command -v uv &> /dev/null; then
+    uv pip install --system -r requirements.txt
+else
+    pip install --break-system-packages -r requirements.txt
+fi
 
 # Collect static files
 python manage.py collectstatic --noinput
