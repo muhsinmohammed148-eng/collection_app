@@ -9,6 +9,10 @@ dist/
 build/
 *.pyc
 
+# Virtual environments
+.venv/
+venv/
+
 # Django
 *.sqlite3
 *.sqlite3-journal

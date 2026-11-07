@@ -44,6 +44,18 @@ else:
     CSRF_COOKIE_SECURE = False
     SECURE_HSTS_SECONDS = 0
 
+CSRF_TRUSTED_ORIGINS = [
+    origin for origin in os.getenv('CSRF_TRUSTED_ORIGINS', '').split(',') if origin
+]
+
+# The v0 preview renders the app inside a cross-site iframe over HTTPS, so
+# session/CSRF cookies must be SameSite=None; Secure to survive form posts.
+if os.getenv('EMBEDDED_PREVIEW', 'False').lower() in ('true', '1', 'yes'):
+    SESSION_COOKIE_SAMESITE = 'None'
+    CSRF_COOKIE_SAMESITE = 'None'
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+
 
 # Application definition
 
