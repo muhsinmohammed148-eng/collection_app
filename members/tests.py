@@ -130,10 +130,11 @@ class PaymentModelTest(TestCase):
         )
 
     def test_create_payment(self):
+        today = date.today()
         payment = Payment.objects.create(
-            member=self.member, amount=500, date=date.today(), method='Cash'
+            member=self.member, amount=500, date=today, method='Cash'
         )
-        self.assertEqual(str(payment), 'Pay Member - 500 (2026-11-06)')
+        self.assertEqual(str(payment), f'Pay Member - 500 ({today})')
 
     def test_payment_ordering(self):
         Payment.objects.create(member=self.member, amount=100, date=date(2026, 1, 1))
