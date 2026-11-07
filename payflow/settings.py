@@ -49,6 +49,15 @@ if vercel_url and vercel_url not in ALLOWED_HOSTS:
 if ON_VERCEL:
     ALLOWED_HOSTS.append('*.vercel.app')
 
+# Add custom domains from environment variable (e.g., collection.nexflowsoft.com)
+# Set CUSTOM_DOMAINS=nexflowsoft.com,collection.nexflowsoft.com in Vercel env vars
+custom_domains = os.getenv('CUSTOM_DOMAINS', '')
+if custom_domains:
+    for domain in custom_domains.split(','):
+        domain = domain.strip()
+        if domain and domain not in ALLOWED_HOSTS:
+            ALLOWED_HOSTS.append(domain)
+
 # CSRF Trusted Origins — required for POST requests on HTTPS/production
 # Django needs the full origin (protocol + domain) to accept CSRF tokens
 csrf_trusted_origins = []
@@ -57,7 +66,15 @@ if vercel_url:
 # Also allow any .vercel.app subdomain for preview deployments
 if ON_VERCEL:
     csrf_trusted_origins.append('https://*.vercel.app')
-# Allow custom origins from env var
+# Add custom domain origins
+if custom_domains:
+    for domain in custom_domains.split(','):
+        domain = domain.strip()
+        if domain:
+            origin = f'https://{domain}'
+            if origin not in csrf_trusted_origins:
+                csrf_trusted_origins.append(origin)
+# Allow additional custom origins from env var
 custom_origins = os.getenv('CSRF_TRUSTED_ORIGINS', '')
 if custom_origins:
     csrf_trusted_origins.extend([o.strip() for o in custom_origins.split(',') if o.strip()])
