@@ -4,12 +4,10 @@
 set -e
 
 # Install dependencies
-# Use uv pip if available (Vercel uses uv-managed Python), otherwise fall back to pip with --break-system-packages
-if command -v uv &> /dev/null; then
-    uv pip install --system -r requirements.txt
-else
-    pip install --break-system-packages -r requirements.txt
-fi
+# Vercel uses uv-managed Python (PEP 668), so we must set PIP_BREAK_SYSTEM_PACKAGES=1
+# This is the most reliable workaround that works across all Vercel Python versions
+export PIP_BREAK_SYSTEM_PACKAGES=1
+pip install -r requirements.txt
 
 # Collect static files
 python manage.py collectstatic --noinput
