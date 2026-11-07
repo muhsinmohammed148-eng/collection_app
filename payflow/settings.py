@@ -27,13 +27,32 @@ SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-%d#dv#kkib(=v*=q)=f%c_i3h7
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv('DEBUG', 'False').lower() in ('true', '1', 'yes')
 
+# Detect if running on Vercel
+ON_VERCEL = os.getenv('VERCEL', '').lower() in ('true', '1', 'yes')
+
 # Allowed hosts — set via environment variable in production
-ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
+# Vercel sets VERCEL and VERCEL_URL environment variables automatically
+allowed_hosts = os.getenv('ALLOWED_HOSTS', '')
+if allowed_hosts:
+    ALLOWED_HOSTS = [h.strip() for h in allowed_hosts.split(',') if h.strip()]
+else:
+    ALLOWED_HOSTS = ['localhost', '127.0.0.1']
+
+# Always add Vercel URL if available (Vercel sets this automatically)
+vercel_url = os.getenv('VERCEL_URL', '')
+if vercel_url and vercel_url not in ALLOWED_HOSTS:
+    ALLOWED_HOSTS.append(vercel_url)
+
+# Also add *.vercel.app wildcard pattern for preview deployments
+if ON_VERCEL:
+    ALLOWED_HOSTS.append('*.vercel.app')
 
 # Security settings for production — only apply when DEBUG=False (production)
 if not DEBUG:
     SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
-    SECURE_SSL_REDIRECT = os.getenv('SECURE_SSL_REDIRECT', 'True').lower() in ('true', '1', 'yes')
+    # On Vercel, HTTPS is already handled by Vercel's edge network, so don't redirect
+    # SECURE_SSL_REDIRECT=True causes infinite redirect loops on Vercel
+    SECURE_SSL_REDIRECT = False if ON_VERCEL else os.getenv('SECURE_SSL_REDIRECT', 'True').lower() in ('true', '1', 'yes')
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
     SECURE_HSTS_SECONDS = 31536000
@@ -94,7 +113,7 @@ WSGI_APPLICATION = 'payflow.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-# Support DATABASE_URL environment variable (e.g., from Railway, Heroku, etc.)
+# Support DATABASE_URL environment variable (e.g., from Railway, Heroku, Vercel, etc.)
 # Format: postgres://user:password@host:port/dbname
 DATABASE_URL = os.getenv('DATABASE_URL', '')
 
@@ -102,17 +121,21 @@ if DATABASE_URL:
     # Production: use PostgreSQL via DATABASE_URL
     import urllib.parse
     parsed = urllib.parse.urlparse(DATABASE_URL)
-    # Handle PostgreSQL SSL requirements for some providers
+    
+    # SSL mode can be overridden via env var; default to 'require' for most cloud providers
+    # Some providers may need 'verify-full' or 'prefer'
+    ssl_mode = os.getenv('DB_SSLMODE', 'require')
+    
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.postgresql',
             'NAME': parsed.path.lstrip('/'),
-            'USER': parsed.username,
-            'PASSWORD': parsed.password,
-            'HOST': parsed.hostname,
+            'USER': parsed.username or '',
+            'PASSWORD': parsed.password or '',
+            'HOST': parsed.hostname or '',
             'PORT': parsed.port or 5432,
             'OPTIONS': {
-                'sslmode': 'require',
+                'sslmode': ssl_mode,
             },
         }
     }
