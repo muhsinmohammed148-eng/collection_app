@@ -45,9 +45,10 @@ vercel_url = os.getenv('VERCEL_URL', '')
 if vercel_url and vercel_url not in ALLOWED_HOSTS:
     ALLOWED_HOSTS.append(vercel_url)
 
-# Also add *.vercel.app wildcard pattern for preview deployments
+# On Vercel, accept any host — Vercel handles all edge security (SSL, DDoS, etc.)
+# This allows custom domains without needing to manually configure ALLOWED_HOSTS
 if ON_VERCEL:
-    ALLOWED_HOSTS.append('*.vercel.app')
+    ALLOWED_HOSTS.append('*')
 
 # Add custom domains from environment variable (e.g., collection.nexflowsoft.com)
 # Set CUSTOM_DOMAINS=nexflowsoft.com,collection.nexflowsoft.com in Vercel env vars
