@@ -35,3 +35,4 @@ Thumbs.db
 # Database backups
 *.bak
 *.sql
+__pycache__/
