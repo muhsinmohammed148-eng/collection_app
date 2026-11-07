@@ -1,0 +1,174 @@
+{% extends "base.html" %}
+{% block title %}{{ tenant.name }} - Tenant Details{% endblock %}
+{% block page_title %}{{ tenant.name }} — Details{% endblock %}
+
+{% block content %}
+<div class="page-actions-bar">
+    <a href="{% url 'accounts:tenant_list' %}" class="btn-sm btn-secondary-custom">
+        <i class="bi bi-arrow-left"></i> Back to Tenants
+    </a>
+    <div style="margin-left:auto; display:flex; gap:0.5rem;">
+        <form method="post" action="{% url 'accounts:tenant_switch' %}" style="display:inline;">
+            {% csrf_token %}
+            <input type="hidden" name="tenant_id" value="{{ tenant.pk }}">
+            <input type="hidden" name="next" value="{% url 'reports:dashboard' %}">
+            <button type="submit" class="btn-sm btn-primary-custom">
+                <i class="bi bi-arrow-repeat"></i> Switch to This Tenant
+            </button>
+        </form>
+        <a href="{% url 'accounts:tenant_user_add' tenant.pk %}" class="btn-sm btn-success-custom">
+            <i class="bi bi-person-plus"></i> Add User
+        </a>
+        <form method="post" action="{% url 'accounts:tenant_delete' tenant.pk %}" style="display:inline;" onsubmit="return confirm('Are you sure you want to delete {{ tenant.name }}? This cannot be undone.');">
+            {% csrf_token %}
+            <button type="submit" class="btn-sm btn-danger-custom">
+                <i class="bi bi-trash"></i> Delete Tenant
+            </button>
+        </form>
+    </div>
+</div>
+
+<!-- Tenant Summary -->
+<div class="card-custom">
+    <div class="card-header-custom">
+        <h6><i class="bi bi-building"></i> {{ tenant.name }}</h6>
+        <span class="status-badge {% if tenant.is_active %}status-up-to-date{% else %}status-unpaid{% endif %}">
+            {% if tenant.is_active %}Active{% else %}Inactive{% endif %}
+        </span>
+    </div>
+    <div class="card-body-custom">
+        <div class="tenant-detail-grid">
+            <div class="detail-item">
+                <label>Email</label>
+                <span>{% if tenant.email %}{{ tenant.email }}{% else %}<em>Not provided</em>{% endif %}</span>
+            </div>
+            <div class="detail-item">
+                <label>Phone</label>
+                <span>{% if tenant.phone %}{{ tenant.phone }}{% else %}<em>Not provided</em>{% endif %}</span>
+            </div>
+            <div class="detail-item">
+                <label>Address</label>
+                <span>{% if tenant.address %}{{ tenant.address }}{% else %}<em>Not provided</em>{% endif %}</span>
+            </div>
+            <div class="detail-item">
+                <label>Created</label>
+                <span>{{ tenant.created_at|date:"M d, Y H:i" }}</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Metrics -->
+<div class="kpi-row">
+    <div class="kpi-card">
+        <div class="kpi-icon kpi-icon-blue">
+            <i class="bi bi-people"></i>
+        </div>
+        <div class="kpi-content">
+            <span class="kpi-value">{{ total_members }}</span>
+            <span class="kpi-label">Active Members</span>
+        </div>
+    </div>
+    <div class="kpi-card">
+        <div class="kpi-icon kpi-icon-green">
+            <i class="bi bi-currency-rupee"></i>
+        </div>
+        <div class="kpi-content">
+            <span class="kpi-value">₹{{ total_expected|floatformat:2 }}</span>
+            <span class="kpi-label">Monthly Expected</span>
+        </div>
+    </div>
+    <div class="kpi-card">
+        <div class="kpi-icon kpi-icon-purple">
+            <i class="bi bi-wallet2"></i>
+        </div>
+        <div class="kpi-content">
+            <span class="kpi-value">₹{{ total_collected|floatformat:2 }}</span>
+            <span class="kpi-label">Total Collected</span>
+        </div>
+    </div>
+    <div class="kpi-card">
+        <div class="kpi-icon kpi-icon-indigo">
+            <i class="bi bi-person-badge"></i>
+        </div>
+        <div class="kpi-content">
+            <span class="kpi-value">{{ users.count }}</span>
+            <span class="kpi-label">Users</span>
+        </div>
+    </div>
+</div>
+
+<!-- Users Table -->
+<div class="card-custom">
+    <div class="card-header-custom">
+        <h6><i class="bi bi-person-badge"></i> Users Under This Tenant</h6>
+        <a href="{% url 'accounts:tenant_user_add' tenant.pk %}" class="btn-sm btn-success-custom">
+            <i class="bi bi-person-plus"></i> Add User
+        </a>
+    </div>
+    <div class="card-body-custom">
+        {% if users %}
+        <div class="table-responsive">
+            <table class="table-custom">
+                <thead>
+                    <tr>
+                        <th>Username</th>
+                        <th>Email</th>
+                        <th>Role</th>
+                        <th>Super Admin</th>
+                        <th>Active</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for user in users %}
+                    <tr>
+                        <td><strong>{{ user.username }}</strong></td>
+                        <td>{{ user.email|default:"—" }}</td>
+                        <td>
+                            <span class="role-badge">{{ user.profile.role|title }}</span>
+                        </td>
+                        <td>
+                            {% if user.profile.is_superadmin %}
+                            <i class="bi bi-star-fill" style="color:var(--amber-500);" title="Super Admin"></i>
+                            {% else %}
+                            <i class="bi bi-dash" style="color:var(--slate-400);"></i>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if user.is_active %}
+                            <span class="status-badge status-up-to-date">Active</span>
+                            {% else %}
+                            <span class="status-badge status-unpaid">Inactive</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <a href="{% url 'accounts:tenant_user_edit' tenant.pk user.pk %}" class="btn-sm btn-secondary-custom" title="Edit">
+                                <i class="bi bi-pencil"></i>
+                            </a>
+                            {% if not user.profile.is_superadmin %}
+                            <form method="post" action="{% url 'accounts:tenant_user_remove' tenant.pk user.pk %}" style="display:inline;" onsubmit="return confirm('Remove {{ user.username }} from this tenant?');">
+                                {% csrf_token %}
+                                <button type="submit" class="btn-sm btn-danger-custom" title="Remove">
+                                    <i class="bi bi-x-circle"></i>
+                                </button>
+                            </form>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <i class="bi bi-person-x"></i>
+            <p>No users assigned to this tenant yet.</p>
+            <a href="{% url 'accounts:tenant_user_add' tenant.pk %}" class="btn-sm btn-primary-custom">
+                <i class="bi bi-person-plus"></i> Add First User
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

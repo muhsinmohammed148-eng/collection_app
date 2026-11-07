@@ -1,0 +1,73 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ title }} - PayFlow{% endblock %}
+{% block page_title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="panel" style="max-width:48rem;margin:0 auto;">
+    <div class="panel-header dark" style="background:var(--slate-900);color:white;">
+        <h3 class="panel-title" style="color:white;"><i class="bi bi-person-plus"></i> {{ title }}</h3>
+    </div>
+    <div class="panel-body">
+        <form method="post">
+            {% csrf_token %}
+            {% if form.non_field_errors %}
+            <div class="alert-custom alert-danger">{{ form.non_field_errors.0 }}</div>
+            {% endif %}
+            <div class="form-group">
+                <label class="form-label">Full Name *</label>
+                {{ form.name }}
+                {% if form.name.errors %}<div class="form-error">{{ form.name.errors.0 }}</div>{% endif %}
+            </div>
+            <div class="form-group">
+                <label class="form-label">Email Address</label>
+                {{ form.email }}
+                {% if form.email.errors %}<div class="form-error">{{ form.email.errors.0 }}</div>{% endif %}
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">Phone Number</label>
+                    {{ form.phone }}
+                    {% if form.phone.errors %}<div class="form-error">{{ form.phone.errors.0 }}</div>{% endif %}
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Monthly Due (₹) *</label>
+                    {{ form.monthly_due }}
+                    {% if form.monthly_due.errors %}<div class="form-error">{{ form.monthly_due.errors.0 }}</div>{% endif %}
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Start Date</label>
+                {{ form.start_date }}
+                {% if form.start_date.errors %}<div class="form-error">{{ form.start_date.errors.0 }}</div>{% endif %}
+            </div>
+            <div class="form-group">
+                <label class="form-label">Notes</label>
+                {{ form.notes }}
+                {% if form.notes.errors %}<div class="form-error">{{ form.notes.errors.0 }}</div>{% endif %}
+            </div>
+            <div class="form-group">
+                <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;">
+                    {{ form.is_active }}
+                    <span class="form-label" style="margin:0;text-transform:none;">Active</span>
+                </label>
+            </div>
+            <div class="modal-footer" style="padding:1rem 0 0;border-top:1px solid var(--slate-100);">
+                <a href="{% url 'members:list' %}" class="btn btn-outline">Cancel</a>
+                {% if member %}
+                <a href="{% url 'members:detail' member.pk %}" class="btn btn-outline">Back to Member</a>
+                {% endif %}
+                <button type="submit" class="btn btn-primary">Save Member</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.querySelectorAll('input[type="text"],input[type="email"],input[type="number"],input[type="date"],textarea').forEach(function(el){
+    if(!el.className) el.className = 'form-control-custom';
+});
+</script>
+{% endblock %}

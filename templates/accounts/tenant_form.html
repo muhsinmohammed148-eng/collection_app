@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}{{ title }} - PayFlow{% endblock %}
+{% block page_title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="page-actions-bar">
+    <a href="{% url 'accounts:tenant_list' %}" class="btn-sm btn-secondary-custom">
+        <i class="bi bi-arrow-left"></i> Back to Tenants
+    </a>
+</div>
+
+<div class="form-card">
+    <div class="card-custom">
+        <div class="card-header-custom">
+            <h6><i class="bi bi-building-add"></i> {{ title }}</h6>
+        </div>
+        <div class="card-body-custom">
+            <form method="post" novalidate>
+                {% csrf_token %}
+                {% for field in form %}
+                <div class="form-group-custom">
+                    <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                    {{ field }}
+                    {% if field.help_text %}
+                    <div class="form-help">{{ field.help_text }}</div>
+                    {% endif %}
+                    {% for error in field.errors %}
+                    <div class="field-error">{{ error }}</div>
+                    {% endfor %}
+                </div>
+                {% endfor %}
+                <div class="form-actions">
+                    <button type="submit" class="btn-primary-custom">
+                        <i class="bi bi-check-circle"></i> Create Tenant
+                    </button>
+                    <a href="{% url 'accounts:tenant_list' %}" class="btn-secondary-custom">
+                        <i class="bi bi-x-circle"></i> Cancel
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

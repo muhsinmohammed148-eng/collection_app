@@ -1,0 +1,51 @@
+{% extends 'base.html' %}
+
+{% block title %}Delete Expense - PayFlow{% endblock %}
+{% block page_title %}Delete Expense{% endblock %}
+
+{% block content %}
+<div class="form-card" style="max-width:500px;margin:0 auto;">
+    <div class="panel">
+        <div class="panel-header">
+            <h3 class="panel-title"><i class="bi bi-exclamation-triangle"></i> Confirm Delete</h3>
+        </div>
+        <div class="panel-body">
+            <div class="alert-custom alert-warning" style="margin:1rem 0;">
+                <i class="bi bi-exclamation-triangle"></i>
+                This action cannot be undone.
+            </div>
+
+            <div class="expense-summary-card">
+                <div class="expense-summary-row">
+                    <span class="expense-label">Date</span>
+                    <span class="expense-value">{{ expense.date }}</span>
+                </div>
+                <div class="expense-summary-row">
+                    <span class="expense-label">Category</span>
+                    <span class="expense-value">{{ expense.get_category_display }}</span>
+                </div>
+                <div class="expense-summary-row">
+                    <span class="expense-label">Amount</span>
+                    <span class="expense-value text-danger text-bold">₹{{ expense.amount|floatformat:2 }}</span>
+                </div>
+                {% if expense.description %}
+                <div class="expense-summary-row">
+                    <span class="expense-label">Description</span>
+                    <span class="expense-value">{{ expense.description }}</span>
+                </div>
+                {% endif %}
+            </div>
+
+            <form method="post" class="mt-3">
+                {% csrf_token %}
+                <div class="form-actions">
+                    <a href="{% url 'reports:expense_list' %}" class="btn btn-outline">Cancel</a>
+                    <button type="submit" class="btn btn-danger">
+                        <i class="bi bi-trash"></i> Delete Expense
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

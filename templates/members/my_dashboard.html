@@ -1,0 +1,189 @@
+{% extends 'base.html' %}
+
+{% block title %}My Dashboard - PayFlow{% endblock %}
+{% block page_title %}My Dashboard{% endblock %}
+
+{% block content %}
+<div class="member-dashboard">
+
+    <!-- Welcome Banner -->
+    <div class="panel member-welcome-banner">
+        <div class="panel-body">
+            <div class="welcome-row">
+                <div class="welcome-avatar">
+                    <i class="bi bi-person-circle"></i>
+                </div>
+                <div class="welcome-info">
+                    <h2 class="welcome-name">{{ member.name }}</h2>
+                    <p class="welcome-sub">{{ member.tenant.name }} · Monthly Due: ₹{{ member.monthly_due }}</p>
+                </div>
+                <div class="welcome-status">
+                    {% if member.status == 'up-to-date' %}
+                    <span class="badge-status badge-up-to-date" style="font-size:1rem;padding:0.4rem 0.8rem;">
+                        <i class="bi bi-check-circle"></i> Up to Date
+                    </span>
+                    {% elif member.status == 'advance' %}
+                    <span class="badge-status badge-advance" style="font-size:1rem;padding:0.4rem 0.8rem;">
+                        <i class="bi bi-clock"></i> Advance
+                    </span>
+                    {% else %}
+                    <span class="badge-status badge-unpaid" style="font-size:1rem;padding:0.4rem 0.8rem;">
+                        <i class="bi bi-exclamation-circle"></i> Payment Due
+                    </span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Current Month Status -->
+    <div class="panel">
+        <div class="panel-header">
+            <h3 class="panel-title"><i class="bi bi-calendar-month"></i> This Month ({{ today|date:"F Y" }})</h3>
+        </div>
+        <div class="panel-body">
+            <div class="current-month-card">
+                <div class="month-status-item">
+                    <div class="month-label">Monthly Due</div>
+                    <div class="month-value">₹{{ member.monthly_due }}</div>
+                </div>
+                <div class="month-status-item">
+                    <div class="month-label">Paid This Month</div>
+                    <div class="month-value text-success">₹{{ current_month_paid|floatformat:2 }}</div>
+                </div>
+                <div class="month-status-item">
+                    <div class="month-label">Remaining</div>
+                    <div class="month-value {% if current_month_paid < member.monthly_due %}text-danger{% else %}text-success{% endif %}">
+                        ₹{{ member.monthly_due|add:"-"|add:current_month_paid|abs|floatformat:2 }}
+                    </div>
+                </div>
+                <div class="month-status-item">
+                    <div class="month-label">Status</div>
+                    <div class="month-value">
+                        {% if current_month_status == 'paid' %}
+                        <span class="badge-status badge-up-to-date"><i class="bi bi-check-circle"></i> Paid</span>
+                        {% elif current_month_status == 'partial' %}
+                        <span class="badge-status badge-advance"><i class="bi bi-clock"></i> Partial</span>
+                        {% else %}
+                        <span class="badge-status badge-unpaid"><i class="bi bi-exclamation-circle"></i> Unpaid</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Financial Summary -->
+    <div class="panel">
+        <div class="panel-header">
+            <h3 class="panel-title"><i class="bi bi-wallet2"></i> Financial Summary</h3>
+        </div>
+        <div class="panel-body">
+            <div class="info-financials">
+                <div class="fin-card fin-paid">
+                    <div class="fin-label">Total Paid</div>
+                    <div class="fin-value">₹{{ member.total_paid|floatformat:2 }}</div>
+                </div>
+                <div class="fin-card fin-balance">
+                    <div class="fin-label">Balance Owed</div>
+                    <div class="fin-value {% if member.current_balance_owed > 0 %}text-danger{% else %}text-success{% endif %}">₹{{ member.current_balance_owed|floatformat:2 }}</div>
+                </div>
+                <div class="fin-card fin-advance">
+                    <div class="fin-label">Advance Balance</div>
+                    <div class="fin-value">₹{{ member.advance_balance|floatformat:2 }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Monthly Breakdown (Last 12 Months) -->
+    <div class="panel">
+        <div class="panel-header">
+            <h3 class="panel-title"><i class="bi bi-calendar3"></i> Last 12 Months</h3>
+        </div>
+        <div class="panel-body p-0">
+            <div class="matrix-wrapper">
+                <table class="breakdown-table">
+                    <thead>
+                    <tr>
+                        <th></th>
+                        {% for month in ledger.monthly_breakdown %}
+                        <th>{{ month.month }}</th>
+                        {% endfor %}
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <th>Due</th>
+                        {% for month in ledger.monthly_breakdown %}
+                        <td>₹{{ month.due }}</td>
+                        {% endfor %}
+                    </tr>
+                    <tr>
+                        <th>Allocated</th>
+                        {% for month in ledger.monthly_breakdown %}
+                        <td>₹{{ month.allocated|floatformat:0 }}</td>
+                        {% endfor %}
+                    </tr>
+                    <tr>
+                        <th>Status</th>
+                        {% for month in ledger.monthly_breakdown %}
+                        <td>
+                            <span class="badge-status badge-{{ month.status }}">
+                                {{ month.status|title }}
+                            </span>
+                        </td>
+                        {% endfor %}
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Payment History -->
+    <div class="panel">
+        <div class="panel-header">
+            <h3 class="panel-title"><i class="bi bi-clock-history"></i> Payment History</h3>
+        </div>
+        <div class="panel-body p-0">
+            {% if payments %}
+            <div class="matrix-wrapper">
+                <table class="payment-table">
+                    <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Amount</th>
+                        <th>Method</th>
+                        <th>Note</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    {% for payment in payments %}
+                    <tr>
+                        <td>{{ payment.date }}</td>
+                        <td class="text-success text-bold">₹{{ payment.amount }}</td>
+                        <td>{{ payment.get_method_display }}</td>
+                        <td>{{ payment.note|default:'-' }}</td>
+                    </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="empty-state">
+                <i class="bi bi-receipt"></i>
+                <h3>No payments recorded yet</h3>
+                <p class="text-muted">Your payment history will appear here once payments are recorded.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Yearly History Link -->
+    <a href="{% url 'reports:yearly_history' member.pk %}" class="btn btn-outline btn-block" style="text-align:center;">
+        <i class="bi bi-calendar-range"></i> View Full Yearly History
+    </a>
+
+</div>
+{% endblock %}

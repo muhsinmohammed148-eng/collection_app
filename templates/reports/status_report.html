@@ -1,0 +1,113 @@
+{% extends 'base.html' %}
+
+{% block title %}Status Report - PayFlow{% endblock %}
+{% block page_title %}Status Report{% endblock %}
+
+{% block content %}
+<!-- Status Summary Cards -->
+<div class="status-summary-grid mb-4">
+    <div class="status-summary-card sut">
+        <h3>{{ status_distribution.up_to_date }}</h3>
+        <p>Up to Date</p>
+    </div>
+    <div class="status-summary-card adv">
+        <h3>{{ status_distribution.advance }}</h3>
+        <p>In Advance</p>
+    </div>
+    <div class="status-summary-card bhd">
+        <h3>{{ status_distribution.behind }}</h3>
+        <p>Behind Dues</p>
+    </div>
+    <div class="status-summary-card unp">
+        <h3>{{ status_distribution.unpaid }}</h3>
+        <p>Unpaid</p>
+    </div>
+</div>
+
+<!-- Members by Status -->
+<div class="d-flex flex-column gap-3">
+    <!-- Up to Date -->
+    <div class="panel">
+        <div class="section-header sut">
+            <i class="bi bi-check-circle"></i> Up to Date
+        </div>
+        <div class="panel-body p-0">
+            {% if grouped_members.up_to_date %}
+            {% for member in grouped_members.up_to_date %}
+            <div class="overdue-item" style="padding:0.75rem 1rem;">
+                <a href="{% url 'members:detail' member.pk %}" style="flex:1;font-weight:600;color:var(--slate-900);">
+                    {{ member.name }}
+                </a>
+                <span class="text-muted text-sm">₹{{ member.monthly_due }}/mo</span>
+            </div>
+            {% endfor %}
+            {% else %}
+            <p class="text-muted text-center py-3 text-sm">No members</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- In Advance -->
+    <div class="panel">
+        <div class="section-header adv">
+            <i class="bi bi-arrow-up-circle"></i> In Advance
+        </div>
+        <div class="panel-body p-0">
+            {% if grouped_members.advance %}
+            {% for member in grouped_members.advance %}
+            <div class="overdue-item" style="padding:0.75rem 1rem;">
+                <a href="{% url 'members:detail' member.pk %}" style="flex:1;font-weight:600;color:var(--slate-900);">
+                    {{ member.name }}
+                </a>
+                <span class="text-muted text-sm">₹{{ member.monthly_due }}/mo</span>
+            </div>
+            {% endfor %}
+            {% else %}
+            <p class="text-muted text-center py-3 text-sm">No members</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Behind -->
+    <div class="panel">
+        <div class="section-header bhd">
+            <i class="bi bi-exclamation-triangle"></i> Behind Dues
+        </div>
+        <div class="panel-body p-0">
+            {% if grouped_members.behind %}
+            {% for member in grouped_members.behind %}
+            <div class="overdue-item" style="padding:0.75rem 1rem;">
+                <a href="{% url 'members:detail' member.pk %}" style="flex:1;font-weight:600;color:var(--slate-900);">
+                    {{ member.name }}
+                </a>
+                <span class="text-danger text-sm text-bold">₹{{ member.current_balance_owed|floatformat:0 }}</span>
+            </div>
+            {% endfor %}
+            {% else %}
+            <p class="text-muted text-center py-3 text-sm">No members</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Unpaid -->
+    <div class="panel">
+        <div class="section-header unp">
+            <i class="bi bi-x-circle"></i> Unpaid
+        </div>
+        <div class="panel-body p-0">
+            {% if grouped_members.unpaid %}
+            {% for member in grouped_members.unpaid %}
+            <div class="overdue-item" style="padding:0.75rem 1rem;">
+                <a href="{% url 'members:detail' member.pk %}" style="flex:1;font-weight:600;color:var(--slate-900);">
+                    {{ member.name }}
+                </a>
+                <span class="text-danger text-sm text-bold">₹{{ member.current_balance_owed|floatformat:0 }}</span>
+            </div>
+            {% endfor %}
+            {% else %}
+            <p class="text-muted text-center py-3 text-sm">No members</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

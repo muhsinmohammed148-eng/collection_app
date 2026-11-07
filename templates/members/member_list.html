@@ -1,0 +1,124 @@
+{% extends 'base.html' %}
+
+{% block title %}Members - PayFlow{% endblock %}
+{% block page_title %}Members{% endblock %}
+
+{% block content %}
+<!-- Toolbar / Filter Bar -->
+<div class="toolbar">
+    <form method="get" class="toolbar-search">
+        <i class="bi bi-search"></i>
+        <input type="text" name="search" placeholder="Search members by name or email..." value="{{ search_query }}">
+    </form>
+    <div class="toolbar-actions">
+        <form method="get" class="toolbar-filter" style="margin:0;">
+            {% if search_query %}<input type="hidden" name="search" value="{{ search_query }}">{% endif %}
+            <i class="bi bi-funnel"></i>
+            <select name="status" onchange="this.form.submit()">
+                <option value="all" {% if status_filter == 'all' %}selected{% endif %}>All Statuses</option>
+                <option value="up-to-date" {% if status_filter == 'up-to-date' %}selected{% endif %}>Up to Date</option>
+                <option value="advance" {% if status_filter == 'advance' %}selected{% endif %}>In Advance</option>
+                <option value="behind" {% if status_filter == 'behind' %}selected{% endif %}>Behind / Partial</option>
+                <option value="unpaid" {% if status_filter == 'unpaid' %}selected{% endif %}>Unpaid</option>
+            </select>
+        </form>
+        <a href="{% url 'reports:export_csv' %}" class="btn-export" title="Export Member Report (with Monthly Matrix)">
+            <i class="bi bi-download"></i>
+            <span class="d-none d-sm-inline">Member Report</span>
+        </a>
+        <a href="{% url 'members:create' %}" class="btn-add-member">
+            <i class="bi bi-person-plus"></i>
+            <span>Add Member</span>
+        </a>
+    </div>
+</div>
+
+<!-- Member Cards Grid -->
+{% if members %}
+<div class="members-grid">
+    {% for member in members %}
+    <div class="member-card">
+        <!-- Top Row: Avatar & Status Badge -->
+        <div class="member-card-top">
+            <a href="{% url 'members:detail' member.pk %}" class="member-link">
+            <div class="d-flex align-center gap-2">
+                <div class="member-avatar">{{ member.name|first|upper }}</div>
+                <div>
+                    <h3 class="member-name">{{ member.name }}</h3>
+                    <p class="member-email">{{ member.email|default:'No email' }}</p>
+                </div>
+            </div>
+            </a>
+
+            <!-- Status Badge -->
+            {% if member.status == 'up-to-date' %}
+            <span class="badge-status badge-up-to-date">
+                <i class="bi bi-check-circle"></i> Paid
+            </span>
+            {% elif member.status == 'advance' %}
+            <span class="badge-status badge-advance">
+                <i class="bi bi-clock"></i> Advance
+            </span>
+            {% else %}
+            <span class="badge-status badge-unpaid">
+                <i class="bi bi-exclamation-circle"></i> Due
+            </span>
+            {% endif %}
+        </div>
+
+        <!-- Details Box -->
+        <div class="member-details">
+            <div class="member-detail-item">
+                <span>Monthly Rate</span>
+                <span>₹{{ member.monthly_due }}/mo</span>
+            </div>
+            <div class="member-detail-item">
+                <span>Total Paid YTD</span>
+                <span class="text-success">₹{{ member.total_paid|floatformat:0 }}</span>
+            </div>
+            <div class="member-detail-item">
+                <span>Balance Owed</span>
+                <span class="{% if member.current_balance_owed > 0 %}text-danger{% else %}text-muted{% endif %}">
+                    ₹{{ member.current_balance_owed|floatformat:0 }}
+                </span>
+            </div>
+            <div class="member-detail-item">
+                <span>Credit Balance</span>
+                <span class="text-info">₹{{ member.advance_balance|floatformat:0 }}</span>
+            </div>
+        </div>
+
+        <!-- Recent Payment Logs -->
+        <div class="member-recent-logs">
+            <span class="member-recent-logs-title">Recent Logs</span>
+            {% for payment in member.payments.all|slice:":2" %}
+            <div class="log-entry">
+                <span>{{ payment.date }} ({{ payment.get_method_display }})</span>
+                <span class="log-amount">+₹{{ payment.amount }}</span>
+            </div>
+            {% empty %}
+            <p class="text-muted text-sm" style="font-style:italic;">No payments logged yet.</p>
+            {% endfor %}
+        </div>
+
+        <!-- Bottom Actions -->
+        <div class="member-card-actions">
+            <a href="{% url 'members:payment_record_for' member.pk %}" class="btn-add-payment">
+                <i class="bi bi-plus"></i>
+                <span>Add Payment</span>
+            </a>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="panel">
+    <div class="empty-state">
+        <i class="bi bi-people"></i>
+        <h3>No members found</h3>
+        <p>Try adjusting your search query or filters.</p>
+        <a href="{% url 'members:create' %}" class="btn btn-primary">Add Member</a>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

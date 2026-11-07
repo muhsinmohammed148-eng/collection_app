@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    {% load static %}
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}PayFlow - Payment Collection{% endblock %}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="{% static 'css/style.css' %}" rel="stylesheet">
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    {% if user.is_authenticated %}
+    <!-- HEADER / NAVIGATION -->
+    <header class="app-header">
+        <div class="header-inner">
+            <!-- Logo & Title -->
+            <div class="header-logo">
+                <div class="header-logo-icon">
+                    <i class="bi bi-credit-card"></i>
+                </div>
+                <div>
+                    <span class="header-logo-text">PayFlow</span>
+                    <span class="header-logo-sub">{{ current_tenant.name }}</span>
+                </div>
+            </div>
+
+            {% if user.profile.role != 'member' %}
+            <!-- Desktop Navigation (Admin/Collector/Viewer/Superadmin) -->
+            <nav class="header-nav">
+                <a href="{% url 'reports:dashboard' %}" class="{% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">
+                    <i class="bi bi-bar-chart-line"></i>
+                    <span>Dashboard</span>
+                </a>
+                <a href="{% url 'members:list' %}" class="{% if 'member' in request.resolver_match.url_name|default:'' %}active{% endif %}">
+                    <i class="bi bi-people"></i>
+                    <span>Members</span>
+                </a>
+                <a href="{% url 'reports:monthly_matrix' %}" class="{% if request.resolver_match.url_name == 'monthly_matrix' %}active{% endif %}">
+                    <i class="bi bi-grid-3x3"></i>
+                    <span>Monthly Matrix</span>
+                </a>
+                <a href="{% url 'reports:yearly_report' %}" class="{% if request.resolver_match.url_name == 'yearly_report' %}active{% endif %}">
+                    <i class="bi bi-calendar-range"></i>
+                    <span>Yearly Report</span>
+                </a>
+                <a href="{% url 'reports:expense_list' %}" class="{% if request.resolver_match.url_name == 'expense_list' %}active{% endif %}">
+                    <i class="bi bi-receipt"></i>
+                    <span>Expenses</span>
+                </a>
+                {% if user.profile.is_superadmin %}
+                <a href="{% url 'accounts:tenant_list' %}" class="{% if 'tenant' in request.resolver_match.url_name|default:'' %}active{% endif %}">
+                    <i class="bi bi-building-gear"></i>
+                    <span>Manage Tenants</span>
+                </a>
+                {% endif %}
+            </nav>
+
+            <!-- Action Buttons (Desktop) -->
+            <div class="header-actions">
+                {% if user.profile.is_superadmin %}
+                <!-- Tenant Switcher Dropdown -->
+                <div class="tenant-switcher-wrapper">
+                    <form method="post" action="{% url 'accounts:tenant_switch' %}" class="tenant-switcher-form">
+                        {% csrf_token %}
+                        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                        <select name="tenant_id" class="tenant-switcher-select" onchange="this.form.submit()">
+                            {% for t in user.profile.accessible_tenants %}
+                            <option value="{{ t.pk }}"{% if t.pk == current_tenant.pk %} selected{% endif %}>
+                                {{ t.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </form>
+                </div>
+                {% endif %}
+                <a href="{% url 'members:payment_record' %}" class="btn-record">
+                    <i class="bi bi-plus"></i>
+                    <span>Record Payment</span>
+                </a>
+                <a href="{% url 'accounts:logout' %}" class="btn-logout" title="Logout">
+                    <i class="bi bi-box-arrow-right"></i>
+                    <span>Logout</span>
+                </a>
+            </div>
+
+            <!-- Mobile Actions -->
+            <div class="mobile-actions">
+                <a href="{% url 'members:payment_record' %}" class="btn-mobile-record" title="Record Payment">
+                    <i class="bi bi-plus"></i>
+                </a>
+                <button class="btn-hamburger" id="menuToggle" aria-label="Toggle menu">
+                    <i class="bi bi-list" id="menuIcon"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Mobile Dropdown Nav (Admin/Collector/Viewer/Superadmin) -->
+        <div class="mobile-nav" id="mobileNav">
+            {% if user.profile.is_superadmin %}
+            <div class="mobile-tenant-switcher">
+                <form method="post" action="{% url 'accounts:tenant_switch' %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                    <select name="tenant_id" class="tenant-switcher-select" onchange="this.form.submit()">
+                        {% for t in user.profile.accessible_tenants %}
+                        <option value="{{ t.pk }}"{% if t.pk == current_tenant.pk %} selected{% endif %}>
+                            🏢 {{ t.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </form>
+            </div>
+            {% endif %}
+            <a href="{% url 'reports:dashboard' %}" class="{% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">
+                <i class="bi bi-bar-chart-line"></i>
+                <span>Dashboard Analytics</span>
+            </a>
+            <a href="{% url 'members:list' %}" class="{% if 'member' in request.resolver_match.url_name|default:'' %}active{% endif %}">
+                <i class="bi bi-people"></i>
+                <span>Member Roster</span>
+            </a>
+            <a href="{% url 'reports:monthly_matrix' %}" class="{% if request.resolver_match.url_name == 'monthly_matrix' %}active{% endif %}">
+                <i class="bi bi-grid-3x3"></i>
+                <span>Monthly Breakdown Grid</span>
+            </a>
+            <a href="{% url 'reports:status_report' %}" class="{% if request.resolver_match.url_name == 'status_report' %}active{% endif %}">
+                <i class="bi bi-bar-chart"></i>
+                <span>Status Report</span>
+            </a>
+            <a href="{% url 'reports:yearly_report' %}" class="{% if request.resolver_match.url_name == 'yearly_report' %}active{% endif %}">
+                <i class="bi bi-calendar-range"></i>
+                <span>Yearly Report</span>
+            </a>
+            <a href="{% url 'reports:expense_list' %}" class="{% if request.resolver_match.url_name == 'expense_list' %}active{% endif %}">
+                <i class="bi bi-receipt"></i>
+                <span>Expense Booking</span>
+            </a>
+            {% if user.profile.is_superadmin %}
+            <a href="{% url 'accounts:tenant_list' %}">
+                <i class="bi bi-building-gear"></i>
+                <span>Manage Tenants</span>
+            </a>
+            {% endif %}
+            <a href="{% url 'accounts:logout' %}">
+                <i class="bi bi-box-arrow-right"></i>
+                <span>Logout</span>
+            </a>
+        </div>
+        {% else %}
+        <!-- Member-only simplified header -->
+        <div class="mobile-actions">
+            <button class="btn-hamburger" id="menuToggle" aria-label="Toggle menu">
+                <i class="bi bi-list" id="menuIcon"></i>
+            </button>
+        </div>
+        </div>
+
+        <!-- Mobile Dropdown Nav (Member only) -->
+        <div class="mobile-nav" id="mobileNav">
+            <a href="{% url 'members:my_dashboard' %}" class="{% if request.resolver_match.url_name == 'my_dashboard' %}active{% endif %}">
+                <i class="bi bi-house-door"></i>
+                <span>My Dashboard</span>
+            </a>
+            <a href="{% url 'accounts:logout' %}">
+                <i class="bi bi-box-arrow-right"></i>
+                <span>Logout</span>
+            </a>
+        </div>
+        {% endif %}
+    </header>
+
+    <!-- Messages -->
+    {% if messages %}
+    <div class="messages-container">
+        {% for message in messages %}
+        <div class="alert-custom alert-{{ message.tags }}">
+            <span>{{ message }}</span>
+            <button type="button" class="alert-close" onclick="this.parentElement.remove()">&times;</button>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Main Content -->
+    <main class="main-container">
+        <div class="page-title-bar">
+            <h5>{% block page_title %}Dashboard{% endblock %}</h5>
+            <div class="user-info-bar" style="margin-left:auto;">
+                {% if user.profile.role != 'member' %}
+                <span class="tenant-badge" title="Current Company / Tenant">
+                    <i class="bi bi-building"></i>
+                    <span>{{ current_tenant.name }}</span>
+                </span>
+                {% if user.profile.is_superadmin %}
+                <span class="role-badge superadmin-badge" title="Super Admin">
+                    <i class="bi bi-star-fill"></i> Super Admin
+                </span>
+                {% endif %}
+                {% else %}
+                <span class="tenant-badge" title="Your Company">
+                    <i class="bi bi-building"></i>
+                    <span>{{ current_tenant.name }}</span>
+                </span>
+                {% endif %}
+                <i class="bi bi-person-circle"></i>
+                <span>{{ user.get_full_name|default:user.username }}</span>
+            </div>
+        </div>
+
+        {% block content %}{% endblock %}
+    </main>
+
+    {% else %}
+    <!-- Auth Pages Layout -->
+    <div class="auth-container">
+        {% block auth_content %}{% endblock %}
+    </div>
+    {% endif %}
+
+    <script src="{% static 'js/main.js' %}"></script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

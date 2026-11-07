@@ -1,0 +1,191 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ member.name }} - PayFlow{% endblock %}
+{% block page_title %}{{ member.name }}{% endblock %}
+
+{% block content %}
+<div class="member-detail-row">
+    <!-- Left Column: Member Info Card -->
+    <div class="member-detail-left">
+        <div class="panel">
+            <div class="panel-header with-actions">
+                <h3 class="panel-title"><i class="bi bi-person"></i> Member Info</h3>
+                <a href="{% url 'members:update' member.pk %}" class="btn btn-sm btn-outline">
+                    <i class="bi bi-pencil"></i> Edit
+                </a>
+            </div>
+            <div class="panel-body member-info-compact">
+                <!-- Name & Status Header -->
+                <div class="info-header">
+                    <div class="info-avatar">
+                        <i class="bi bi-person-circle"></i>
+                    </div>
+                    <div class="info-header-text">
+                        <div class="info-name">{{ member.name }}</div>
+                        <div>
+                            {% if member.status == 'up-to-date' %}
+                            <span class="badge-status badge-up-to-date"><i class="bi bi-check-circle"></i> Paid</span>
+                            {% elif member.status == 'advance' %}
+                            <span class="badge-status badge-advance"><i class="bi bi-clock"></i> Advance</span>
+                            {% else %}
+                            <span class="badge-status badge-unpaid"><i class="bi bi-exclamation-circle"></i> Due</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                <!-- Contact Info Row -->
+                <div class="info-grid">
+                    {% if member.email %}
+                    <div class="info-item">
+                        <i class="bi bi-envelope"></i>
+                        <span class="info-label">Email</span>
+                        <span class="info-value">{{ member.email }}</span>
+                    </div>
+                    {% endif %}
+                    {% if member.phone %}
+                    <div class="info-item">
+                        <i class="bi bi-phone"></i>
+                        <span class="info-label">Phone</span>
+                        <span class="info-value">{{ member.phone }}</span>
+                    </div>
+                    {% endif %}
+                    <div class="info-item">
+                        <i class="bi bi-calendar3"></i>
+                        <span class="info-label">Started</span>
+                        <span class="info-value">{{ member.start_date }}</span>
+                    </div>
+                    <div class="info-item">
+                        <i class="bi bi-currency-rupee"></i>
+                        <span class="info-label">Monthly Due</span>
+                        <span class="info-value">₹{{ member.monthly_due }}</span>
+                    </div>
+                </div>
+                <!-- Financial Summary -->
+                <div class="info-financials">
+                    <div class="fin-card fin-paid">
+                        <div class="fin-label">Total Paid</div>
+                        <div class="fin-value">₹{{ member.total_paid|floatformat:2 }}</div>
+                    </div>
+                    <div class="fin-card fin-balance">
+                        <div class="fin-label">Balance Owed</div>
+                        <div class="fin-value {% if member.current_balance_owed > 0 %}text-danger{% else %}text-success{% endif %}">₹{{ member.current_balance_owed|floatformat:2 }}</div>
+                    </div>
+                    <div class="fin-card fin-advance">
+                        <div class="fin-label">Advance</div>
+                        <div class="fin-value">₹{{ member.advance_balance|floatformat:2 }}</div>
+                    </div>
+                </div>
+                {% if member.notes %}
+                <div class="info-notes">
+                    <i class="bi bi-journal-text"></i>
+                    <span>{{ member.notes }}</span>
+                </div>
+                {% endif %}
+            </div>
+            <div class="panel-body" style="border-top:1px solid var(--slate-100);">
+                <a href="{% url 'members:payment_record_for' member.pk %}" class="btn btn-success btn-block">
+                    <i class="bi bi-receipt"></i> Record Payment
+                </a>
+                {% if user.profile.role in 'admin,collector,superadmin' or user.profile.is_superadmin %}
+                <a href="{% url 'accounts:member_credentials' member.pk %}" class="btn btn-outline btn-block" style="margin-top:0.5rem;text-align:center;">
+                    <i class="bi bi-key"></i>
+                    {% if member.user %}Update Credentials{% else %}Set Login Credentials{% endif %}
+                </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Column: Monthly Breakdown, Payment History, Yearly History -->
+    <div class="member-detail-right">
+        <!-- Monthly Breakdown -->
+        <div class="panel">
+            <div class="panel-header">
+                <h3 class="panel-title"><i class="bi bi-calendar3"></i> Monthly Breakdown</h3>
+            </div>
+            <div class="panel-body p-0">
+                <div class="matrix-wrapper">
+                    <table class="breakdown-table">
+                        <thead>
+                        <tr>
+                            <th/>
+                            {% for month in ledger.monthly_breakdown %}
+                            <th>{{ month.month }}</th>
+                            {% endfor %}
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr>
+                            <th>Due</th>
+                            {% for month in ledger.monthly_breakdown %}
+                            <td>₹{{ month.due }}</td>
+                            {% endfor %}
+                        </tr>
+                        <tr>
+                            <th>Allocated</th>
+                            {% for month in ledger.monthly_breakdown %}
+                            <td>₹{{ month.allocated|floatformat:0 }}</td>
+                            {% endfor %}
+                        </tr>
+                        <tr>
+                            <th>Status</th>
+                            {% for month in ledger.monthly_breakdown %}
+                            <td>
+                                    <span class="badge-status badge-{{ month.status }}">
+                                        {{ month.status|title }}
+                                    </span>
+                            </td>
+                            {% endfor %}
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Payment History -->
+        <div class="panel">
+            <div class="panel-header">
+                <h3 class="panel-title"><i class="bi bi-clock-history"></i> Payment History</h3>
+            </div>
+            <div class="panel-body p-0">
+                {% if payments %}
+                <div class="matrix-wrapper">
+                    <table class="payment-table">
+                        <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Amount</th>
+                            <th>Method</th>
+                            <th>Note</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        {% for payment in payments %}
+                        <tr>
+                            <td>{{ payment.date }}</td>
+                            <td class="text-success text-bold">₹{{ payment.amount }}</td>
+                            <td>{{ payment.get_method_display }}</td>
+                            <td>{{ payment.note|default:'-' }}</td>
+                        </tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="empty-state">
+                    <i class="bi bi-receipt"></i>
+                    <h3>No payments recorded yet</h3>
+                    <a href="{% url 'members:payment_record_for' member.pk %}" class="btn btn-primary">Record Payment</a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Yearly History Link -->
+        <a href="{% url 'reports:yearly_history' member.pk %}" class="btn btn-outline btn-block" style="text-align:center;">
+            <i class="bi bi-calendar-range"></i> View Full Yearly History
+        </a>
+    </div>
+</div>
+{% endblock %}

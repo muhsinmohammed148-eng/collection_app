@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}Manage Tenants - PayFlow{% endblock %}
+{% block page_title %}Manage Tenants{% endblock %}
+
+{% block content %}
+
+<div class="card-custom">
+    <div class="card-header-custom">
+        <h6><i class="bi bi-building-gear"></i> All Companies / Tenants</h6>
+        <span class="badge-count">{{ tenants.count }} tenant{{ tenants.count|pluralize }}</span>
+    </div>
+    <div class="card-body-custom">
+        <div class="tenant-grid">
+            {% for tenant in tenants %}
+            <div class="tenant-card {% if tenant.pk == current_tenant.pk %}active-tenant{% endif %}">
+                <div class="tenant-card-header">
+                    <div class="tenant-card-icon">
+                        <i class="bi bi-building"></i>
+                    </div>
+                    <div class="tenant-card-info">
+                        <h5>{{ tenant.name }}</h5>
+                        {% if tenant.email %}
+                        <small><i class="bi bi-envelope"></i> {{ tenant.email }}</small><br>
+                        {% endif %}
+                        {% if tenant.phone %}
+                        <small><i class="bi bi-phone"></i> {{ tenant.phone }}</small><br>
+                        {% endif %}
+                        <small class="text-muted"><i class="bi bi-calendar"></i> Created {{ tenant.created_at|date:"M d, Y" }}</small>
+                    </div>
+                    {% if tenant.pk == current_tenant.pk %}
+                    <span class="current-tenant-badge">
+                        <i class="bi bi-check-circle-fill"></i> Active
+                    </span>
+                    {% endif %}
+                </div>
+                <div class="tenant-card-stats">
+                    <div class="stat-item">
+                        <span class="stat-value">{{ tenant.user_count }}</span>
+                        <span class="stat-label">Users</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-value">{{ tenant.member_count }}</span>
+                        <span class="stat-label">Members</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="status-badge {% if tenant.is_active %}status-up-to-date{% else %}status-unpaid{% endif %}">
+                            {% if tenant.is_active %}Active{% else %}Inactive{% endif %}
+                        </span>
+                    </div>
+                </div>
+                <div class="tenant-card-actions">
+                    <a href="{% url 'accounts:tenant_detail' tenant.pk %}" class="btn-sm btn-primary-custom">
+                        <i class="bi bi-eye"></i> View Details
+                    </a>
+                    <form method="post" action="{% url 'accounts:tenant_switch' %}" style="display:inline;">
+                        {% csrf_token %}
+                        <input type="hidden" name="tenant_id" value="{{ tenant.pk }}">
+                        <input type="hidden" name="next" value="{% url 'reports:dashboard' %}">
+                        <button type="submit" class="btn-sm btn-secondary-custom">
+                            <i class="bi bi-arrow-repeat"></i> Switch
+                        </button>
+                    </form>
+                </div>
+            </div>
+            {% empty %}
+            <div class="empty-state">
+                <i class="bi bi-building"></i>
+                <p>No tenants found.</p>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}

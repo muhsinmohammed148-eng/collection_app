@@ -1,0 +1,70 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ title }} - PayFlow{% endblock %}
+{% block page_title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="panel" style="max-width:48rem;margin:0 auto;">
+    <div class="panel-header green" style="background:var(--emerald-700);color:white;">
+        <h3 class="panel-title" style="color:white;"><i class="bi bi-currency-dollar"></i> {{ title }}</h3>
+    </div>
+    <div class="panel-body">
+        <form method="post">
+            {% csrf_token %}
+            {% if form.non_field_errors %}
+            <div class="alert-custom alert-danger">{{ form.non_field_errors.0 }}</div>
+            {% endif %}
+            <div class="form-group">
+                <label class="form-label">Select Member *</label>
+                {{ form.member }}
+                {% if form.member.errors %}<div class="form-error">{{ form.member.errors.0 }}</div>{% endif %}
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">Amount (₹) *</label>
+                    {{ form.amount }}
+                    {% if form.amount.errors %}<div class="form-error">{{ form.amount.errors.0 }}</div>{% endif %}
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Payment Date</label>
+                    {{ form.date }}
+                    {% if form.date.errors %}<div class="form-error">{{ form.date.errors.0 }}</div>{% endif %}
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Payment Method</label>
+                {{ form.method }}
+                {% if form.method.errors %}<div class="form-error">{{ form.method.errors.0 }}</div>{% endif %}
+            </div>
+            <div class="form-group">
+                <label class="form-label">Notes / Description</label>
+                {{ form.note }}
+                {% if form.note.errors %}<div class="form-error">{{ form.note.errors.0 }}</div>{% endif %}
+            </div>
+            <div class="info-box mt-3">
+                <i class="bi bi-arrow-repeat"></i>
+                <span>
+                    <strong>Auto-Allocation Engine:</strong> Entered payment will automatically cover past overdue months first, then current, and spill over into advance months.
+                </span>
+            </div>
+            <div class="modal-footer" style="padding:1rem 0 0;border-top:1px solid var(--slate-100);">
+                <a href="{% url 'members:list' %}" class="btn btn-outline">Cancel</a>
+                {% if member %}
+                <a href="{% url 'members:detail' member.pk %}" class="btn btn-outline">Back to Member</a>
+                {% endif %}
+                <button type="submit" class="btn btn-success">
+                    <i class="bi bi-check-circle"></i> Register Payment
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.querySelectorAll('input[type="text"],input[type="email"],input[type="number"],input[type="date"],textarea,select').forEach(function(el){
+    if(!el.className) el.className = 'form-control-custom';
+});
+</script>
+{% endblock %}

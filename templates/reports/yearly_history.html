@@ -1,0 +1,189 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ member.name }} - Yearly History{% endblock %}
+{% block page_title %}{{ member.name }} - Yearly History{% endblock %}
+
+{% block content %}
+<div class="gap-3">
+
+    <!-- Back & Summary Bar -->
+    <div class="panel">
+        <div class="panel-header with-actions">
+            <div>
+                <h2 class="panel-title"><i class="bi bi-calendar-range"></i> Yearly Payment History</h2>
+                <p class="panel-subtitle">{{ member.name }} &bull; Monthly Due: ₹{{ member.monthly_due }} &bull; Since {{ member.start_date }}</p>
+            </div>
+            <a href="{% url 'members:detail' member.pk %}" class="btn btn-sm btn-outline">
+                <i class="bi bi-arrow-left"></i> Back to Detail
+            </a>
+        </div>
+        <div class="panel-body">
+            <div class="yearly-summary-row">
+                <div class="yearly-summary-card">
+                    <span class="yearly-summary-label">Total Expected</span>
+                    <span class="yearly-summary-value">₹{{ grand_expected|floatformat:2 }}</span>
+                </div>
+                <div class="yearly-summary-card">
+                    <span class="yearly-summary-label">Total Collected</span>
+                    <span class="yearly-summary-value text-success">₹{{ grand_collected|floatformat:2 }}</span>
+                </div>
+                <div class="yearly-summary-card">
+                    <span class="yearly-summary-label">Outstanding Balance</span>
+                    <span class="yearly-summary-value {% if grand_balance > 0 %}text-danger{% else %}text-success{% endif %}">₹{{ grand_balance|floatformat:2 }}</span>
+                </div>
+                <div class="yearly-summary-card">
+                    <span class="yearly-summary-label">Years on Record</span>
+                    <span class="yearly-summary-value">{{ years|length }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if years %}
+        {% for year_data in years %}
+        <!-- Year Block -->
+        <div class="panel year-block">
+            <div class="panel-header year-header" style="cursor:pointer;" onclick="toggleYear('year-{{ year_data.year }}')">
+                <div style="display:flex;align-items:center;gap:0.5rem;">
+                    <i class="bi bi-chevron-right year-toggle-icon" id="icon-year-{{ year_data.year }}"></i>
+                    <h3 class="panel-title" style="margin:0;">{{ year_data.year }}</h3>
+                </div>
+                <div class="year-mini-stats">
+                    <span class="year-mini-stat" title="Expected">
+                        <i class="bi bi-calendar"></i> ₹{{ year_data.year_expected|floatformat:0 }}
+                    </span>
+                    <span class="year-mini-stat text-success" title="Collected">
+                        <i class="bi bi-wallet2"></i> ₹{{ year_data.year_collected|floatformat:0 }}
+                    </span>
+                    <span class="year-mini-stat {% if year_data.year_balance > 0 %}text-danger{% else %}text-muted{% endif %}" title="Balance">
+                        <i class="bi bi-info-circle"></i> ₹{{ year_data.year_balance|floatformat:0 }}
+                    </span>
+                    <span class="year-mini-stat" title="Paid Months">
+                        <span class="badge-dot badge-paid"></span> {{ year_data.paid_count }}
+                    </span>
+                    {% if year_data.partial_count > 0 %}
+                    <span class="year-mini-stat" title="Partial Months">
+                        <span class="badge-dot badge-partial"></span> {{ year_data.partial_count }}
+                    </span>
+                    {% endif %}
+                    {% if year_data.unpaid_count > 0 %}
+                    <span class="year-mini-stat" title="Unpaid Months">
+                        <span class="badge-dot badge-unpaid"></span> {{ year_data.unpaid_count }}
+                    </span>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Expandable Year Content -->
+            <div class="year-content collapsed" id="year-{{ year_data.year }}">
+                <!-- Monthly Grid -->
+                <div class="panel-body p-0">
+                    <h4 class="section-label"><i class="bi bi-grid-3x3"></i> Monthly Breakdown</h4>
+                    <div class="matrix-wrapper">
+                        <table class="yearly-month-table">
+                            <thead>
+                                <tr>
+                                    {% for month in year_data.monthly %}
+                                    <th class="month-col">{{ month.month }}</th>
+                                    {% endfor %}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <th>Due</th>
+                                    {% for month in year_data.monthly %}
+                                    <td class="month-col {% if month.due == 0 %}text-muted{% endif %}">
+                                        {% if month.due > 0 %}₹{{ month.due|floatformat:0 }}{% else %}—{% endif %}
+                                    </td>
+                                    {% endfor %}
+                                </tr>
+                                <tr>
+                                    <th>Collected</th>
+                                    {% for month in year_data.monthly %}
+                                    <td class="month-col text-success">
+                                        {% if month.collected > 0 %}₹{{ month.collected|floatformat:0 }}{% else %}—{% endif %}
+                                    </td>
+                                    {% endfor %}
+                                </tr>
+                                <tr>
+                                    <th>Status</th>
+                                    {% for month in year_data.monthly %}
+                                    <td class="month-col">
+                                        {% if month.status == 'n/a' %}
+                                            <span class="badge-status badge-n/a">—</span>
+                                        {% elif month.status == 'paid' %}
+                                            <span class="badge-status badge-paid"><i class="bi bi-check"></i> Paid</span>
+                                        {% elif month.status == 'partial' %}
+                                            <span class="badge-status badge-partial"><i class="bi bi-dash"></i> Partial</span>
+                                        {% else %}
+                                            <span class="badge-status badge-unpaid"><i class="bi bi-x"></i> Unpaid</span>
+                                        {% endif %}
+                                    </td>
+                                    {% endfor %}
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Payment Records for this Year -->
+                {% if year_data.payment_records %}
+                <div class="panel-body" style="border-top:1px solid var(--slate-100);">
+                    <h4 class="section-label"><i class="bi bi-clock-history"></i> Payments in {{ year_data.year }}</h4>
+                    <div class="matrix-wrapper">
+                        <table class="payment-table">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Amount</th>
+                                    <th>Method</th>
+                                    <th>Note</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for rec in year_data.payment_records %}
+                                <tr>
+                                    <td>{{ rec.date }}</td>
+                                    <td class="text-success text-bold">₹{{ rec.amount }}</td>
+                                    <td>{{ rec.method }}</td>
+                                    <td>{{ rec.note|default:'-' }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    {% else %}
+        <div class="panel">
+            <div class="panel-body">
+                <div class="empty-state">
+                    <i class="bi bi-calendar-x"></i>
+                    <h3>No yearly data yet</h3>
+                    <p class="text-muted">Payments will appear here once recorded.</p>
+                    <a href="{% url 'members:payment_record_for' member.pk %}" class="btn btn-primary">Record Payment</a>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+</div>
+
+<script>
+function toggleYear(id) {
+    const el = document.getElementById(id);
+    const icon = document.getElementById('icon-' + id);
+    if (el.classList.contains('collapsed')) {
+        el.classList.remove('collapsed');
+        icon.classList.remove('bi-chevron-right');
+        icon.classList.add('bi-chevron-down');
+    } else {
+        el.classList.add('collapsed');
+        icon.classList.remove('bi-chevron-down');
+        icon.classList.add('bi-chevron-right');
+    }
+}
+</script>
+{% endblock %}

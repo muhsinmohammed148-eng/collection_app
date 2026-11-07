@@ -1,0 +1,193 @@
+{% extends 'base.html' %}
+
+{% block title %}Dashboard - PayFlow{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+
+{% block content %}
+<!-- KPI Cards -->
+<div class="kpi-grid">
+    <div class="kpi-card kpi-collected">
+        <div class="kpi-info">
+            <p class="kpi-label">Total Collected</p>
+            <h3 class="kpi-value">₹{{ metrics.total_collected|floatformat:0 }}</h3>
+            <span class="kpi-sub">
+                <i class="bi bi-graph-up-arrow"></i> Lifetime YTD
+            </span>
+        </div>
+        <div class="kpi-icon-wrap">
+            <i class="bi bi-currency-rupee"></i>
+        </div>
+    </div>
+
+    <div class="kpi-card kpi-expense">
+        <div class="kpi-info">
+            <p class="kpi-label">Total Expenses</p>
+            <h3 class="kpi-value">₹{{ metrics.total_expenses|floatformat:0 }}</h3>
+            <span class="kpi-sub">
+                <a href="{% url 'reports:expense_list' %}">View expenses <i class="bi bi-chevron-right"></i></a>
+            </span>
+        </div>
+        <div class="kpi-icon-wrap">
+            <i class="bi bi-receipt"></i>
+        </div>
+    </div>
+
+    <div class="kpi-card kpi-net">
+        <div class="kpi-info">
+            <p class="kpi-label">Net Earnings</p>
+            <h3 class="kpi-value {% if metrics.net_earnings < 0 %}text-danger{% else %}text-success{% endif %}">₹{{ metrics.net_earnings|floatformat:0 }}</h3>
+            <span class="kpi-sub">Collected − Expenses</span>
+        </div>
+        <div class="kpi-icon-wrap">
+            <i class="bi bi-wallet2"></i>
+        </div>
+    </div>
+
+    <div class="kpi-card kpi-rate">
+        <div class="kpi-info">
+            <p class="kpi-label">Collection Rate</p>
+            <h3 class="kpi-value">{{ metrics.collection_rate }}%</h3>
+            <div class="rate-bar">
+                <div class="rate-bar-fill" style="width: {{ metrics.collection_rate }}%"></div>
+            </div>
+        </div>
+        <div class="kpi-icon-wrap">
+            <i class="bi bi-graph-up-arrow"></i>
+        </div>
+    </div>
+
+    <div class="kpi-card kpi-pending">
+        <div class="kpi-info">
+            <p class="kpi-label">Pending Dues</p>
+            <h3 class="kpi-value">₹{{ metrics.pending_dues|floatformat:0 }}</h3>
+            <span class="kpi-sub text-muted">Expected: ₹{{ metrics.total_expected_ytd|floatformat:0 }}</span>
+        </div>
+        <div class="kpi-icon-wrap">
+            <i class="bi bi-exclamation-circle"></i>
+        </div>
+    </div>
+
+    <div class="kpi-card kpi-members">
+        <div class="kpi-info">
+            <p class="kpi-label">Total Members</p>
+            <h3 class="kpi-value">{{ metrics.total_members|default:0 }}</h3>
+            <span class="kpi-sub">
+                {{ metrics.overdue_count|default:0 }} require attention
+            </span>
+        </div>
+        <div class="kpi-icon-wrap">
+            <i class="bi bi-people"></i>
+        </div>
+    </div>
+</div>
+
+<!-- Charts Section -->
+<div class="d-flex flex-column gap-3">
+    <!-- Collection Trend (CSS Bar Chart) -->
+    <div class="panel">
+        <div class="panel-header">
+            <div>
+                <h3 class="panel-title">Collection Trends ({{ chart_data.0.month|slice:":-3" }}{{ chart_data.0.month|slice:"3:"|default:'2026' }})</h3>
+                <p class="panel-subtitle">Monthly expected versus actual collections</p>
+            </div>
+        </div>
+        <div class="panel-body chart-container">
+            {% for data in chart_data %}
+            <div class="chart-bar-row">
+                <div class="chart-bar-label">{{ data.month }}</div>
+                <div class="chart-bar-track">
+                    {% if data.expected > 0 %}
+                    <div class="chart-bar-fill expected" style="width: {{ data.expected|add:"0" }}%;" title="Expected: ₹{{ data.expected|floatformat:0 }}">
+                        {% if data.expected|floatformat:0 != "0" %}₹{{ data.expected|floatformat:0 }}{% endif %}
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="chart-bar-track">
+                    {% if data.collected > 0 %}
+                    <div class="chart-bar-fill collected" style="width: {{ data.collected|add:"0" }}%;" title="Collected: ₹{{ data.collected|floatformat:0 }}">
+                        {% if data.collected|floatformat:0 != "0" %}₹{{ data.collected|floatformat:0 }}{% endif %}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Status Distribution -->
+    <div class="panel">
+        <div class="panel-body">
+            <h3 class="panel-title mb-2">Member Status Overview</h3>
+            <p class="panel-subtitle mb-3">Distribution by account standing</p>
+            <div class="pie-chart-container">
+                <div class="pie-chart" style="background: conic-gradient(
+                    var(--emerald-500) 0% {{ status_distribution.up_to_date|floatformat:0 }}%,
+                    var(--blue-600) {{ status_distribution.up_to_date|floatformat:0 }}% {{ status_distribution.up_to_date|add:status_distribution.advance|floatformat:0 }}%,
+                    var(--amber-500) {{ status_distribution.up_to_date|add:status_distribution.advance|floatformat:0 }}% {{ status_distribution.up_to_date|add:status_distribution.advance|add:status_distribution.behind|floatformat:0 }}%,
+                    var(--rose-500) {{ status_distribution.up_to_date|add:status_distribution.advance|add:status_distribution.behind|floatformat:0 }}% 100%
+                );"></div>
+                <div class="pie-legend">
+                    <div class="pie-legend-item">
+                        <span class="pie-legend-swatch" style="background:var(--emerald-500)"></span>
+                        <span>Up to Date: <strong>{{ status_distribution.up_to_date }}</strong></span>
+                    </div>
+                    <div class="pie-legend-item">
+                        <span class="pie-legend-swatch" style="background:var(--blue-600)"></span>
+                        <span>In Advance: <strong>{{ status_distribution.advance }}</strong></span>
+                    </div>
+                    <div class="pie-legend-item">
+                        <span class="pie-legend-swatch" style="background:var(--amber-500)"></span>
+                        <span>Behind Dues: <strong>{{ status_distribution.behind }}</strong></span>
+                    </div>
+                    <div class="pie-legend-item">
+                        <span class="pie-legend-swatch" style="background:var(--rose-500)"></span>
+                        <span>Unpaid: <strong>{{ status_distribution.unpaid }}</strong></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Overdue Accounts -->
+<div class="panel">
+    <div class="panel-header with-actions">
+        <div>
+            <h3 class="panel-title">Action Required: Overdue Accounts</h3>
+            <p class="panel-subtitle">Members behind schedule for current billing period</p>
+        </div>
+        <a href="{% url 'members:list' %}" class="btn btn-sm btn-outline">
+            View All <i class="bi bi-chevron-right"></i>
+        </a>
+    </div>
+    <div class="panel-body p-0">
+        {% if overdue_members %}
+        {% for member in overdue_members %}
+        <div class="overdue-item">
+            <div class="d-flex align-center gap-2">
+                <div class="overdue-avatar">{{ member.name|first|upper }}</div>
+                <div class="overdue-info">
+                    <h4>{{ member.name }}</h4>
+                    <p>{{ member.email|default:'No email' }} &bull; Due: ₹{{ member.monthly_due }}/mo</p>
+                </div>
+            </div>
+            <div class="overdue-actions">
+                <div class="overdue-balance">
+                    <small>Balance Owed</small>
+                    <strong>₹{{ member.current_balance_owed|floatformat:0 }}</strong>
+                </div>
+                <a href="{% url 'members:payment_record_for' member.pk %}" class="btn-collect">
+                    Collect
+                </a>
+            </div>
+        </div>
+        {% endfor %}
+        {% else %}
+        <div class="empty-state">
+            <i class="bi bi-check-circle"></i>
+            <p>All members are currently up to date on their payments!</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

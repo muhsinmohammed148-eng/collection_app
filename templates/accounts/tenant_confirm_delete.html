@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block title %}Delete Tenant - PayFlow{% endblock %}
+{% block page_title %}Delete Tenant{% endblock %}
+
+{% block content %}
+<div class="page-actions-bar">
+    <a href="{% url 'accounts:tenant_list' %}" class="btn-sm btn-secondary-custom">
+        <i class="bi bi-arrow-left"></i> Back to Tenants
+    </a>
+</div>
+
+<div class="form-card">
+    <div class="card-custom" style="border-left: 4px solid var(--red-500);">
+        <div class="card-header-custom" style="background: var(--red-50);">
+            <h6 style="color: var(--red-600);"><i class="bi bi-exclamation-triangle"></i> Confirm Deletion</h6>
+        </div>
+        <div class="card-body-custom">
+            <div class="alert alert-danger-custom" style="margin-bottom: 1.5rem;">
+                <strong>Warning!</strong> Are you sure you want to delete <strong>"{{ tenant.name }}"</strong>?
+                This action cannot be undone.
+            </div>
+
+            <div class="tenant-detail-grid" style="margin-bottom: 1.5rem;">
+                <div class="detail-item">
+                    <label>Company Name</label>
+                    <span><strong>{{ tenant.name }}</strong></span>
+                </div>
+                <div class="detail-item">
+                    <label>Email</label>
+                    <span>{% if tenant.email %}{{ tenant.email }}{% else %}<em>Not provided</em>{% endif %}</span>
+                </div>
+                <div class="detail-item">
+                    <label>Phone</label>
+                    <span>{% if tenant.phone %}{{ tenant.phone }}{% else %}<em>Not provided</em>{% endif %}</span>
+                </div>
+                <div class="detail-item">
+                    <label>Created</label>
+                    <span>{{ tenant.created_at|date:"M d, Y H:i" }}</span>
+                </div>
+            </div>
+
+            <!-- KPI row showing associated data -->
+            <div class="kpi-row" style="margin-bottom: 1.5rem;">
+                <div class="kpi-card">
+                    <div class="kpi-icon kpi-icon-red">
+                        <i class="bi bi-people"></i>
+                    </div>
+                    <div class="kpi-content">
+                        <span class="kpi-value">{{ user_count }}</span>
+                        <span class="kpi-label">Users</span>
+                    </div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-icon kpi-icon-red">
+                        <i class="bi bi-person-badge"></i>
+                    </div>
+                    <div class="kpi-content">
+                        <span class="kpi-value">{{ member_count }}</span>
+                        <span class="kpi-label">Members</span>
+                    </div>
+                </div>
+            </div>
+
+            {% if user_count > 0 or member_count > 0 %}
+            <div class="alert alert-warning-custom" style="margin-bottom: 1.5rem;">
+                <strong><i class="bi bi-exclamation-octagon"></i> This tenant has {{ user_count }} user(s) and {{ member_count }} member(s).</strong>
+                <br>All associated users, members, and payments will be permanently deleted along with this tenant.
+            </div>
+            {% endif %}
+
+            <div class="alert alert-danger-custom" style="margin-bottom: 1.5rem;">
+                <strong><i class="bi bi-trash"></i> This action cannot be undone.</strong>
+                <br>All data belonging to "{{ tenant.name }}" will be permanently removed.
+            </div>
+
+            <form method="post" style="display: inline;">
+                {% csrf_token %}
+                <button type="submit" class="btn-danger-custom" onclick="return confirm('Are you absolutely sure you want to delete {{ tenant.name }} and ALL its data ({{ user_count }} users, {{ member_count }} members, all payments)? This cannot be undone!');">
+                    <i class="bi bi-trash"></i> Yes, Delete Everything
+                </button>
+            </form>
+
+            <a href="{% url 'accounts:tenant_list' %}" class="btn-secondary-custom" style="margin-left: 0.5rem;">
+                <i class="bi bi-x-circle"></i> Cancel
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

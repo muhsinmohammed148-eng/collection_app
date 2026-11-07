@@ -1,0 +1,84 @@
+{% extends 'base.html' %}
+
+{% block title %}Monthly Matrix - PayFlow{% endblock %}
+{% block page_title %}Monthly Payment Matrix{% endblock %}
+
+{% block content %}
+<div class="panel">
+    <div class="panel-header with-actions">
+        <div>
+            <h2 class="panel-title">Monthly Breakdown Matrix</h2>
+            <p class="panel-subtitle">Auto-allocated payment mapping per billing period</p>
+        </div>
+        {% if matrix %}
+        <a href="{% url 'reports:export_monthly_matrix_csv' %}" class="btn btn-sm btn-outline">
+            <i class="bi bi-download"></i> Export CSV
+        </a>
+        {% endif %}
+    </div>
+    <div class="panel-body">
+        <!-- Legend -->
+        <div class="matrix-legend mb-3">
+            <div class="matrix-legend-item">
+                <span class="matrix-legend-swatch" style="background:var(--emerald-500)"></span>
+                <span>Paid</span>
+            </div>
+            <div class="matrix-legend-item">
+                <span class="matrix-legend-swatch" style="background:var(--amber-400)"></span>
+                <span>Partial</span>
+            </div>
+            <div class="matrix-legend-item">
+                <span class="matrix-legend-swatch" style="background:var(--rose-500)"></span>
+                <span>Overdue</span>
+            </div>
+            <div class="matrix-legend-item">
+                <span class="matrix-legend-swatch" style="background:var(--slate-200)"></span>
+                <span>Upcoming</span>
+            </div>
+        </div>
+    </div>
+    <div class="panel-body p-0">
+        {% if matrix %}
+        <div class="matrix-wrapper">
+            <table class="matrix-table">
+                <thead>
+                    <tr>
+                        <th class="member-col">Member Name</th>
+                        <th>Due / Mo</th>
+                        {% for item in matrix.0.ledger.monthly_breakdown %}
+                        <th>{{ item.month }}</th>
+                        {% endfor %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in matrix %}
+                    <tr>
+                        <td class="member-cell">
+                            <span class="mini-avatar">{{ item.member.name|first|upper }}</span>
+                            <span>{{ item.member.name }}</span>
+                        </td>
+                        <td class="text-sm text-muted">₹{{ item.member.monthly_due }}</td>
+                        {% for month in item.ledger.monthly_breakdown %}
+                        <td>
+                            <div class="matrix-cell status-{{ month.status }}">
+                                {% if month.allocated > 0 %}
+                                ₹{{ month.allocated|floatformat:0 }}
+                                {% endif %}
+                            </div>
+                        </td>
+                        {% endfor %}
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <i class="bi bi-grid-3x3"></i>
+            <h3>No members to display</h3>
+            <p><a href="{% url 'members:create' %}">Add a member</a></p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

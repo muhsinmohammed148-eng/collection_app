@@ -1,0 +1,118 @@
+{% extends 'base.html' %}
+{% load report_extras %}
+
+{% block title %}Expenses - PayFlow{% endblock %}
+{% block page_title %}Expense Booking{% endblock %}
+
+{% block content %}
+<div class="expense-page">
+
+    <!-- Summary Cards -->
+    <div class="kpi-grid expense-summary">
+        <div class="kpi-card kpi-expense">
+            <div class="kpi-info">
+                <p class="kpi-label">Total Expenses</p>
+                <h3 class="kpi-value">₹{{ total_expenses|floatformat:0 }}</h3>
+                <span class="kpi-sub">{{ expenses.count }} transactions</span>
+            </div>
+            <div class="kpi-icon-wrap">
+                <i class="bi bi-receipt"></i>
+            </div>
+        </div>
+        <div class="kpi-card kpi-net">
+            <div class="kpi-info">
+                <p class="kpi-label">Net Earnings</p>
+                <h3 class="kpi-value {% if metrics.net_earnings < 0 %}text-danger{% else %}text-success{% endif %}">₹{{ metrics.net_earnings|floatformat:0 }}</h3>
+                <span class="kpi-sub">Collected: ₹{{ metrics.total_collected|floatformat:0 }}</span>
+            </div>
+            <div class="kpi-icon-wrap">
+                <i class="bi bi-currency-rupee"></i>
+            </div>
+        </div>
+    </div>
+
+    <!-- Category Summary -->
+    {% if category_summary %}
+    <div class="panel">
+        <div class="panel-header">
+            <h3 class="panel-title"><i class="bi bi-tags"></i> Expenses by Category</h3>
+        </div>
+        <div class="panel-body">
+            <div class="category-summary-grid">
+                {% for cat_key, cat_label in EXPENSE_CATEGORIES %}
+                {% if category_summary|get_item:cat_key %}
+                <a href="?category={{ cat_key }}" class="category-chip {% if selected_category == cat_key %}active{% endif %}">
+                    <span class="category-label">{{ cat_label }}</span>
+                    <span class="category-amount">₹{{ category_summary|get_item:cat_key|floatformat:0 }}</span>
+                </a>
+                {% endif %}
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Expense List -->
+    <div class="panel">
+        <div class="panel-header with-actions">
+            <h3 class="panel-title"><i class="bi bi-list-ul"></i> Expense Records</h3>
+            <a href="{% url 'reports:expense_create' %}" class="btn btn-success btn-sm">
+                <i class="bi bi-plus"></i> Add Expense
+            </a>
+        </div>
+        <div class="panel-body p-0">
+            {% if expenses %}
+            <div class="matrix-wrapper">
+                <table class="expense-table">
+                    <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Category</th>
+                        <th>Description</th>
+                        <th class="text-right">Amount</th>
+                        <th class="text-center">Action</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    {% for expense in expenses %}
+                    <tr>
+                        <td>{{ expense.date }}</td>
+                        <td>
+                            <span class="badge-category badge-{{ expense.category }}">
+                                {{ expense.get_category_display }}
+                            </span>
+                        </td>
+                        <td>{{ expense.description|default:'-'|truncatechars:50 }}</td>
+                        <td class="text-right text-danger text-bold">₹{{ expense.amount|floatformat:2 }}</td>
+                        <td class="text-center">
+                            <form method="post" action="{% url 'reports:expense_delete' expense.pk %}" class="inline-delete-form" onsubmit="return confirm('Delete this expense of ₹{{ expense.amount }}?');">
+                                {% csrf_token %}
+                                <button type="submit" class="btn-icon btn-icon-danger" title="Delete">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    </tbody>
+                    <tfoot>
+                    <tr class="total-row">
+                        <td colspan="3" class="text-right"><strong>Total</strong></td>
+                        <td class="text-right text-danger text-bold">₹{{ filtered_total|floatformat:2 }}</td>
+                        <td></td>
+                    </tr>
+                    </tfoot>
+                </table>
+            </div>
+            {% else %}
+            <div class="empty-state">
+                <i class="bi bi-receipt"></i>
+                <h3>No expenses recorded</h3>
+                <p class="text-muted">Click "Add Expense" to book your first expense.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+</div>
+{% endblock %}
