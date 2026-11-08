@@ -4,6 +4,9 @@ Middleware to dynamically trust request origins on Vercel deployments.
 Django's CSRF_TRUSTED_ORIGINS setting doesn't support wildcards for arbitrary
 custom domains. This middleware adds the request's origin to CSRF_TRUSTED_ORIGINS
 at runtime when running on Vercel, so custom domains work without manual configuration.
+
+Also ensures that Vercel's HTTPS requests are properly recognized as secure,
+since Vercel terminates SSL at the edge and may not always send X-Forwarded-Proto.
 """
 
 import os
@@ -28,12 +31,11 @@ class VercelOriginTrustMiddleware:
         
         if on_vercel:
             # Build the origin from the request's host and scheme
+            # On Vercel, all requests are HTTPS — force the scheme to https
             host = request.get_host()
-            # Remove port number for origin header
-            if ':' in host and not host.endswith(':443') and not host.endswith(':80'):
-                # Keep the port for non-standard ports
-                pass
-            scheme = 'https' if request.is_secure() else 'http'
+            # Vercel always serves HTTPS, so force scheme to https
+            # This fixes the issue where X-Forwarded-Proto header may be missing
+            scheme = 'https'
             origin = f'{scheme}://{host}'
             
             # Add to CSRF_TRUSTED_ORIGINS if not already present
