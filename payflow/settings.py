@@ -38,7 +38,7 @@ allowed_hosts = os.getenv('ALLOWED_HOSTS', '')
 if allowed_hosts:
     ALLOWED_HOSTS = [h.strip() for h in allowed_hosts.split(',') if h.strip()]
 else:
-    ALLOWED_HOSTS = ['localhost', '127.0.0.1']
+    ALLOWED_HOSTS = ['localhost', '127.0.0.1', 'testserver']
 
 # Always add Vercel URL if available (Vercel sets this automatically)
 vercel_url = os.getenv('VERCEL_URL', '')
@@ -111,6 +111,18 @@ else:
     SECURE_HSTS_SECONDS = 0
 
 
+# Session configuration
+# On Vercel, use cache-based (in-memory) sessions since SQLite in /tmp is ephemeral
+# and DB sessions would require a writable database
+if ON_VERCEL:
+    SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        }
+    }
+
+
 # Application definition
 
 INSTALLED_APPS = [
@@ -158,7 +170,7 @@ TEMPLATES = [
 WSGI_APPLICATION = 'payflow.wsgi.application'
 
 
-# Database
+# Database configuration
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
 # Support DATABASE_URL environment variable (e.g., from Railway, Heroku, Vercel, etc.)
@@ -188,11 +200,17 @@ if DATABASE_URL:
         }
     }
 else:
-    # Development: use SQLite
+    # Default: use SQLite (local development and Vercel serverless)
+    # On Vercel, /tmp is the only writable directory
+    if ON_VERCEL:
+        db_path = '/tmp/db.sqlite3'
+    else:
+        db_path = BASE_DIR / 'db.sqlite3'
+    
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.sqlite3',
-            'NAME': BASE_DIR / 'db.sqlite3',
+            'NAME': db_path,
         }
     }
 
