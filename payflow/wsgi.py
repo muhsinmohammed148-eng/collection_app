@@ -38,3 +38,19 @@ if on_vercel:
         )
     except Exception:
         pass
+    
+    # Auto-create default superuser so login always works on Vercel
+    # (SQLite in /tmp is ephemeral — database resets on every cold start)
+    try:
+        import django
+        django.setup()
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        if not User.objects.filter(username='admin').exists():
+            User.objects.create_superuser(
+                username='admin',
+                email='admin@nexflowsoft.com',
+                password='admin123',
+            )
+    except Exception:
+        pass
