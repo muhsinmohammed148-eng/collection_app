@@ -12,11 +12,54 @@
     var ACCESS_TOKEN_KEY = 'payflow_access_token';
     var REFRESH_TOKEN_KEY = 'payflow_refresh_token';
     var CURRENT_TENANT_KEY = 'payflow_current_tenant_id';
+    var ACCESS_TOKEN_COOKIE = 'payflow_jwt';
+
+    // ── Cookie helpers ──────────────────────────────────────────────
+    // Cookies are sent automatically with every browser request,
+    // including regular page navigations (not just fetch calls).
+    // This is the key fix for Vercel: the middleware reads the token
+    // from the cookie, so the user stays authenticated even when
+    // navigating between pages without an Authorization header.
+
+    function setCookie(name, value, days) {
+        var expires = '';
+        if (days) {
+            var date = new Date();
+            date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
+            expires = '; expires=' + date.toUTCString();
+        }
+        // SameSite=Lax allows the cookie on top-level navigations (page loads)
+        // but blocks it on cross-site POSTs, which is secure enough for our use.
+        document.cookie = name + '=' + encodeURIComponent(value) + expires + '; path=/; SameSite=Lax';
+    }
+
+    function getCookie(name) {
+        var nameEq = name + '=';
+        var cookies = document.cookie.split(';');
+        for (var i = 0; i < cookies.length; i++) {
+            var cookie = cookies[i];
+            while (cookie.charAt(0) === ' ') {
+                cookie = cookie.substring(1);
+            }
+            if (cookie.indexOf(nameEq) === 0) {
+                return decodeURIComponent(cookie.substring(nameEq.length));
+            }
+        }
+        return '';
+    }
+
+    function deleteCookie(name) {
+        document.cookie = name + '=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC; SameSite=Lax';
+    }
 
     // ── Token helpers ───────────────────────────────────────────────
 
     function getAccessToken() {
-        return localStorage.getItem(ACCESS_TOKEN_KEY);
+        // Check localStorage first (used by fetch wrapper)
+        var token = localStorage.getItem(ACCESS_TOKEN_KEY);
+        if (token) return token;
+        // Fall back to cookie (used by page navigation)
+        return getCookie(ACCESS_TOKEN_COOKIE);
     }
 
     function getRefreshToken() {
@@ -26,24 +69,37 @@
     function setTokens(access, refresh) {
         localStorage.setItem(ACCESS_TOKEN_KEY, access);
         localStorage.setItem(REFRESH_TOKEN_KEY, refresh);
+        // Store access token in a cookie so it's sent with every request
+        // (including regular page navigations, not just fetch calls)
+        setCookie(ACCESS_TOKEN_COOKIE, access, 7);
     }
 
     function clearTokens() {
         localStorage.removeItem(ACCESS_TOKEN_KEY);
         localStorage.removeItem(REFRESH_TOKEN_KEY);
+        deleteCookie(ACCESS_TOKEN_COOKIE);
     }
 
     // ── Tenant helpers ──────────────────────────────────────────────
+    // Tenant ID is stored in both localStorage AND a cookie.
+    // The cookie ensures the backend can read it on regular page
+    // navigations, not just fetch() calls.
+
+    var TENANT_COOKIE = 'payflow_tenant';
 
     function getCurrentTenantId() {
-        return localStorage.getItem(CURRENT_TENANT_KEY);
+        var tenantId = localStorage.getItem(CURRENT_TENANT_KEY);
+        if (tenantId) return tenantId;
+        return getCookie(TENANT_COOKIE);
     }
 
     function setCurrentTenantId(tenantId) {
         if (tenantId) {
             localStorage.setItem(CURRENT_TENANT_KEY, String(tenantId));
+            setCookie(TENANT_COOKIE, String(tenantId), 7);
         } else {
             localStorage.removeItem(CURRENT_TENANT_KEY);
+            deleteCookie(TENANT_COOKIE);
         }
     }
 

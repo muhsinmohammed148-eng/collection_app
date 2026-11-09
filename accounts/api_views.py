@@ -77,7 +77,7 @@ def token_obtain_pair(request):
 
 
 @api_view(['POST'])
-@permission_classes([IsAuthenticated])
+@permission_classes([AllowAny])
 def token_refresh(request):
     """
     Refresh an expired access token using a valid refresh token.
@@ -110,7 +110,7 @@ def token_refresh(request):
 
 
 @api_view(['POST'])
-@permission_classes([IsAuthenticated])
+@permission_classes([AllowAny])
 def token_blacklist_view(request):
     """
     Logout by blacklisting the refresh token.

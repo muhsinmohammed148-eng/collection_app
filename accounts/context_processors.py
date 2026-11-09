@@ -19,9 +19,14 @@ def current_tenant(request):
         return {}
 
     if profile.is_superadmin:
-        # Check HTTP header first (set by frontend auth.js from localStorage)
-        # This is the primary source on Vercel where sessions are lost between cold starts
+        # Priority for tenant ID:
+        # 1. X-Current-Tenant-Id header (fetch/XHR calls with auth.js)
+        # 2. payflow_tenant cookie (regular page navigations)
+        # 3. Session (fallback for non-JWT requests)
+        # 4. Profile default tenant
         tenant_id = request.headers.get('X-Current-Tenant-Id')
+        if not tenant_id:
+            tenant_id = request.COOKIES.get('payflow_tenant')
         if not tenant_id:
             tenant_id = request.session.get('current_tenant_id')
 

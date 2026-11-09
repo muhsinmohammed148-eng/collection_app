@@ -68,14 +68,17 @@ def user_logout(request):
 def _get_current_tenant(request):
     """
     Return the active tenant for the current request.
-    - Superadmins: check X-Current-Tenant-Id header first (set by auth.js from
-      localStorage), then fall back to session, then to profile default.
+    - Superadmins: check X-Current-Tenant-Id header first (fetch calls),
+      then payflow_tenant cookie (page navigations), then session,
+      then profile default.
     - Everyone else: use their profile's default tenant.
     """
     profile = request.user.profile
     if profile.is_superadmin:
-        # Check HTTP header first (set by frontend auth.js from localStorage)
+        # Priority: header > cookie > session > default
         tenant_id = request.headers.get('X-Current-Tenant-Id')
+        if not tenant_id:
+            tenant_id = request.COOKIES.get('payflow_tenant')
         if not tenant_id:
             tenant_id = request.session.get('current_tenant_id')
         if tenant_id:

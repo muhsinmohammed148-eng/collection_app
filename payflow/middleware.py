@@ -10,7 +10,6 @@ Middleware for Vercel deployments and JWT token authentication.
 
 import os
 from django.conf import settings
-from django.contrib.auth.models import AnonymousUser
 from rest_framework_simplejwt.tokens import AccessToken
 from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
 
@@ -55,9 +54,10 @@ class TokenAuthenticationMiddleware:
     """
     Extract JWT token from the Authorization header and authenticate the user.
     
-    This middleware runs before Django's AuthenticationMiddleware, so it can
-    set request.user for all views. It checks for a Bearer token in the
-    Authorization header and validates it against the JWT secret.
+    This middleware runs AFTER Django's AuthenticationMiddleware, so it only
+    sets request.user when session auth could not find a user (AnonymousUser).
+    It checks for a Bearer token in the Authorization header and validates
+    it against the JWT secret.
     
     This is the key fix for the Vercel serverless session problem: instead of
     relying on server-side sessions (which are lost across cold starts), the
@@ -68,16 +68,30 @@ class TokenAuthenticationMiddleware:
         self.get_response = get_response
 
     def __call__(self, request):
-        # Only process token auth if a Bearer token is present
+        # Only authenticate via JWT if session auth did not find a user
+        if request.user.is_authenticated:
+            response = self.get_response(request)
+            return response
+
+        # Try to get the JWT token from:
+        # 1. Authorization: Bearer <token> header (fetch/XHR calls)
+        # 2. payflow_jwt cookie (regular page navigations)
+        # Cookies are sent automatically with every browser request,
+        # which is the key fix for Vercel serverless cold starts.
+        token_str = None
+
         auth_header = request.META.get('HTTP_AUTHORIZATION', '')
-        
         if auth_header.startswith('Bearer '):
             token_str = auth_header[7:]  # Strip 'Bearer ' prefix
+        elif 'payflow_jwt' in request.COOKIES:
+            token_str = request.COOKIES['payflow_jwt']
+
+        if token_str:
             try:
                 # Validate and decode the JWT token
                 token = AccessToken(token_str)
                 user_id = token['user_id']
-                
+
                 # Look up the user from the database
                 from django.contrib.auth import get_user_model
                 User = get_user_model()
@@ -85,15 +99,9 @@ class TokenAuthenticationMiddleware:
                     user = User.objects.get(pk=user_id, is_active=True)
                     request.user = user
                 except User.DoesNotExist:
-                    request.user = AnonymousUser()
+                    pass  # Leave as AnonymousUser
             except (InvalidToken, TokenError, KeyError, ValueError):
-                # Token is invalid or expired — fall through to session auth
-                request.user = AnonymousUser()
-        else:
-            # No Bearer token — let Django's session auth handle it
-            # Set as AnonymousUser initially; Django's AuthenticationMiddleware
-            # will override this with the session-based user
-            pass
-        
+                pass  # Leave as AnonymousUser
+
         response = self.get_response(request)
         return response
