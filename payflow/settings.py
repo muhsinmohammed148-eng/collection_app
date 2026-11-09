@@ -255,7 +255,11 @@ USE_TZ = True
 
 STATIC_URL = 'static/'
 STATICFILES_DIRS = [BASE_DIR / 'static']
-STATIC_ROOT = BASE_DIR / 'staticfiles'
+# On Vercel, /tmp is the only writable directory for collectstatic output
+if ON_VERCEL:
+    STATIC_ROOT = '/tmp/staticfiles'
+else:
+    STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 # WhiteNoise configuration for serving static files in production
 # Use CompressedManifestStaticFilesStorage in production, simpler storage in dev/tests
