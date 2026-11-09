@@ -232,6 +232,22 @@ else:
         }
     }
 
+# Log database configuration at startup
+import logging as _logging
+_startup_logger = _logging.getLogger('payflow.settings')
+if ON_VERCEL and not DATABASE_URL:
+    _startup_logger.critical(
+        '⚠️  VERCEL WARNING: No DATABASE_URL configured! '
+        'Using ephemeral SQLite in /tmp/ — data is LOST on every cold start. '
+        'Users created on one function instance cannot be found on another. '
+        'Set DATABASE_URL to a PostgreSQL connection string (e.g., Neon, Supabase, Railway) '
+        'for persistent storage. Without this, login will fail intermittently.'
+    )
+elif DATABASE_URL:
+    _startup_logger.info(f'Database: PostgreSQL ({DATABASE_URL[:30]}...)')
+else:
+    _startup_logger.info(f'Database: SQLite ({db_path})')
+
 
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators

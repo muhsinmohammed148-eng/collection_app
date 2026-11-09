@@ -220,6 +220,16 @@ def token_obtain_pair_with_credentials(request):
             status=status.HTTP_400_BAD_REQUEST
         )
     
+    # Support logging in with email: if the input looks like an email, find the user by email
+    # and use their actual username for authenticate().
+    if '@' in username:
+        try:
+            email_user = User.objects.get(email__iexact=username)
+            logger.info(f'Login via email "{username}" -> resolved to username "{email_user.username}"')
+            username = email_user.username
+        except User.DoesNotExist:
+            pass  # Will fail below with "user does not exist"
+    
     # Try case-insensitive username lookup first — Django's authenticate() is case-sensitive,
     # but users may type their username in a different case than how it was created.
     # On Vercel serverless, this also helps diagnose database sync issues.
