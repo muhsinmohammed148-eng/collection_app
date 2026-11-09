@@ -116,13 +116,15 @@ else:
 
 
 # Session configuration
-# On Vercel, use cache-based (in-memory) sessions since SQLite in /tmp is ephemeral
-# and DB sessions would require a writable database
+# On Vercel, use file-based sessions in /tmp/ so they persist across requests
+# within the same function instance (LocMemCache is per-process and loses sessions)
 if ON_VERCEL:
-    SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
+    SESSION_ENGINE = 'django.contrib.sessions.backends.file'
+    SESSION_FILE_PATH = '/tmp/sessions'
     CACHES = {
         'default': {
-            'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+            'BACKEND': 'django.core.cache.backends.filebased.FileBasedCache',
+            'LOCATION': '/tmp/cache',
         }
     }
 
