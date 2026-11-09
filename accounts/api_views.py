@@ -28,6 +28,8 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         return token
 
     def validate(self, attrs):
+        import logging
+        logger = logging.getLogger(__name__)
         data = super().validate(attrs)
         # Add user info to response
         data['user'] = {
@@ -38,16 +40,21 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
             'last_name': self.user.last_name,
             'is_staff': self.user.is_staff,
         }
-        # Include profile info if available
-        if hasattr(self.user, 'profile'):
-            data['profile'] = {
-                'role': self.user.profile.role,
-                'tenant': {
-                    'id': self.user.profile.tenant.id,
-                    'name': self.user.profile.tenant.name,
-                },
-                'is_superadmin': self.user.profile.is_superadmin,
-            }
+        # Include profile info if available — handle missing profile/tenant gracefully
+        try:
+            if hasattr(self.user, 'profile') and self.user.profile.tenant:
+                data['profile'] = {
+                    'role': self.user.profile.role,
+                    'tenant': {
+                        'id': self.user.profile.tenant.id,
+                        'name': self.user.profile.tenant.name,
+                    },
+                    'is_superadmin': self.user.profile.is_superadmin,
+                }
+            else:
+                logger.warning(f'Token obtain for {self.user.username}: user has no profile or tenant')
+        except Exception as e:
+            logger.error(f'Token obtain for {self.user.username}: error accessing profile: {e}', exc_info=True)
         return data
 
 
@@ -70,6 +77,10 @@ def token_obtain_pair(request):
         serializer.is_valid(raise_exception=True)
         return Response(serializer.validated_data, status=status.HTTP_200_OK)
     except Exception as e:
+        # Log the real error for debugging, but don't expose it to the client
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f'Token obtain failed for username={request.data.get("username")}: {e}', exc_info=True)
         return Response(
             {'error': 'Invalid username or password.'},
             status=status.HTTP_401_UNAUTHORIZED
@@ -163,17 +174,22 @@ def user_info(request):
         'is_active': user.is_active,
     }
     
-    # Include profile info if available
-    if hasattr(user, 'profile'):
-        profile = user.profile
-        data['profile'] = {
-            'role': profile.role,
-            'is_superadmin': profile.is_superadmin,
-            'tenant': {
-                'id': profile.tenant.id,
-                'name': profile.tenant.name,
-            },
-        }
+    # Include profile info if available — handle missing profile/tenant gracefully
+    try:
+        if hasattr(user, 'profile') and user.profile.tenant:
+            profile = user.profile
+            data['profile'] = {
+                'role': profile.role,
+                'is_superadmin': profile.is_superadmin,
+                'tenant': {
+                    'id': profile.tenant.id,
+                    'name': profile.tenant.name,
+                },
+            }
+    except Exception as e:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f'User info error for {user.username}: {e}', exc_info=True)
     
     return Response(data, status=status.HTTP_200_OK)
 
@@ -191,6 +207,9 @@ def token_obtain_pair_with_credentials(request):
         "password": "secret"
     }
     """
+    import logging
+    logger = logging.getLogger(__name__)
+    
     username = request.data.get('username')
     password = request.data.get('password')
     
@@ -202,6 +221,26 @@ def token_obtain_pair_with_credentials(request):
     
     user = authenticate(username=username, password=password)
     if user is None:
+        # Debug: check if the user exists and has a valid password
+        try:
+            existing_user = User.objects.get(username=username)
+            logger.warning(f'Login failed for {username}: user exists but auth failed. '
+                          f'is_active={existing_user.is_active}, '
+                          f'password_set={bool(existing_user.password)}, '
+                          f'password_start={existing_user.password[:20] if existing_user.password else "EMPTY"}')
+            if not existing_user.password:
+                return Response(
+                    {'error': 'Invalid username or password. (Account has no password set — please reset your password.)'},
+                    status=status.HTTP_401_UNAUTHORIZED
+                )
+            if not existing_user.is_active:
+                return Response(
+                    {'error': 'Account is disabled.'},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+        except User.DoesNotExist:
+            logger.warning(f'Login failed for {username}: user does not exist')
+        
         return Response(
             {'error': 'Invalid username or password.'},
             status=status.HTTP_401_UNAUTHORIZED
@@ -229,14 +268,19 @@ def token_obtain_pair_with_credentials(request):
     }
     
     # Include profile info if available
-    if hasattr(user, 'profile'):
-        data['profile'] = {
-            'role': user.profile.role,
-            'tenant': {
-                'id': user.profile.tenant.id,
-                'name': user.profile.tenant.name,
-            },
-            'is_superadmin': user.profile.is_superadmin,
-        }
+    try:
+        if hasattr(user, 'profile') and user.profile.tenant:
+            data['profile'] = {
+                'role': user.profile.role,
+                'tenant': {
+                    'id': user.profile.tenant.id,
+                    'name': user.profile.tenant.name,
+                },
+                'is_superadmin': user.profile.is_superadmin,
+            }
+        else:
+            logger.warning(f'Login for {username}: user has no profile or tenant')
+    except Exception as e:
+        logger.error(f'Login for {username}: error accessing profile: {e}', exc_info=True)
     
     return Response(data, status=status.HTTP_200_OK)

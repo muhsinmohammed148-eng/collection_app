@@ -287,10 +287,16 @@ class TenantUserForm(forms.Form):
         else:
             # Create new user
             username = self.cleaned_data['username']
+            password = self.cleaned_data.get('password1', '')
+            if not password:
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.error(f'Attempted to create user "{username}" with empty password!')
+                raise forms.ValidationError('Password is required for new users.')
             user = User.objects.create_user(
                 username=username,
                 email=self.cleaned_data.get('email', ''),
-                password=self.cleaned_data.get('password1')
+                password=password
             )
             # The signal creates a Profile with default tenant; update it
             user.profile.tenant = self.tenant
