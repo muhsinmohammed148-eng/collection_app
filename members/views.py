@@ -9,13 +9,20 @@ from .forms import MemberForm, PaymentForm
 def _get_current_tenant(request):
     """
     Return the active tenant for the current request.
-    - Superadmins: use the session-stored tenant (switchable).
+    - Superadmins: check X-Current-Tenant-Id header first (fetch calls),
+      then payflow_tenant cookie (page navigations), then session,
+      then profile default.
     - Everyone else: use their profile's default tenant.
     """
     from accounts.models import Tenant
     profile = request.user.profile
     if profile.is_superadmin:
-        tenant_id = request.session.get('current_tenant_id')
+        # Priority: header > cookie > session > default
+        tenant_id = request.headers.get('X-Current-Tenant-Id')
+        if not tenant_id:
+            tenant_id = request.COOKIES.get('payflow_tenant')
+        if not tenant_id:
+            tenant_id = request.session.get('current_tenant_id')
         if tenant_id:
             try:
                 tenant = Tenant.objects.get(pk=tenant_id, is_active=True)

@@ -58,6 +58,13 @@ document.querySelectorAll('input[type="text"],input[type="password"]').forEach(f
         var csrfMeta = document.querySelector('input[name="csrfmiddlewaretoken"]');
         if (csrfMeta) csrfToken = csrfMeta.value;
 
+        // Determine redirect URL from the ?next= query parameter, or default to dashboard
+        var params = new URLSearchParams(window.location.search);
+        var nextUrl = params.get('next');
+        if (!nextUrl || nextUrl === '/accounts/login/' || nextUrl === '/accounts/logout/') {
+            nextUrl = '{% url "reports:dashboard" %}';
+        }
+
         fetch('/api/auth/login/', {
             method: 'POST',
             headers: {
@@ -69,7 +76,7 @@ document.querySelectorAll('input[type="text"],input[type="password"]').forEach(f
             if (res.ok) return res.json();
             return res.json().then(function(data) { throw new Error(data.error || 'Login failed'); });
         }).then(function(data) {
-            // Store JWT tokens
+            // Store JWT tokens in localStorage and cookies
             if (window.PayFlowAuth) {
                 window.PayFlowAuth.setTokens(data.access, data.refresh);
                 // Store tenant ID for superadmins
@@ -77,12 +84,8 @@ document.querySelectorAll('input[type="text"],input[type="password"]').forEach(f
                     window.PayFlowAuth.setCurrentTenantId(data.profile.tenant.id);
                 }
             }
-            // Redirect to dashboard
-            var redirectUrl = '{% url "reports:dashboard" %}';
-            if (data.profile && data.profile.role === 'member') {
-                redirectUrl = '/members/my-dashboard/';
-            }
-            window.location.href = redirectUrl;
+            // Redirect to dashboard or the next URL
+            window.location.href = nextUrl;
         }).catch(function(err) {
             // Show error message
             var existing = form.querySelector('.alert-custom');

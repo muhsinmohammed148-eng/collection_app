@@ -30,7 +30,9 @@
         }
         // SameSite=Lax allows the cookie on top-level navigations (page loads)
         // but blocks it on cross-site POSTs, which is secure enough for our use.
-        document.cookie = name + '=' + encodeURIComponent(value) + expires + '; path=/; SameSite=Lax';
+        // Secure flag ensures the cookie is sent over HTTPS (required on Vercel).
+        var secure = window.location.protocol === 'https:' ? '; Secure' : '';
+        document.cookie = name + '=' + encodeURIComponent(value) + expires + '; path=/; SameSite=Lax' + secure;
     }
 
     function getCookie(name) {
