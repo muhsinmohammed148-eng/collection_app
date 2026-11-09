@@ -116,17 +116,21 @@ else:
 
 
 # Session configuration
-# On Vercel, use file-based sessions in /tmp/ so they persist across requests
-# within the same function instance (LocMemCache is per-process and loses sessions)
+# On Vercel, use database-backed sessions (default) since SQLite in /tmp/ supports
+# proper read/write within a function instance. File-based sessions fail because
+# each serverless request may hit a different process that can't access the same /tmp/ files.
 if ON_VERCEL:
-    SESSION_ENGINE = 'django.contrib.sessions.backends.file'
-    SESSION_FILE_PATH = '/tmp/sessions'
+    # Use default database-backed sessions (django.contrib.sessions.backends.db)
+    # This works with SQLite in /tmp/ because the database connection is opened per-request
     CACHES = {
         'default': {
-            'BACKEND': 'django.core.cache.backends.filebased.FileBasedCache',
-            'LOCATION': '/tmp/cache',
+            'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
         }
     }
+    # Keep sessions alive longer on Vercel to handle cold starts
+    SESSION_COOKIE_AGE = 86400 * 7  # 1 week
+    SESSION_EXPIRE_AT_BROWSER_CLOSE = False
+    SESSION_SAVE_EVERY_REQUEST = True  # Refresh session expiry on each request
 
 
 # Application definition
