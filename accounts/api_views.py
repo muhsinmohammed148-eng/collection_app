@@ -5,6 +5,7 @@ These endpoints allow the frontend to obtain, refresh, and revoke JWT tokens,
 enabling stateless authentication that works reliably on Vercel serverless.
 """
 
+import os
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -219,11 +220,23 @@ def token_obtain_pair_with_credentials(request):
             status=status.HTTP_400_BAD_REQUEST
         )
     
+    # Try case-insensitive username lookup first — Django's authenticate() is case-sensitive,
+    # but users may type their username in a different case than how it was created.
+    # On Vercel serverless, this also helps diagnose database sync issues.
+    try:
+        existing_user = User.objects.get(username__iexact=username)
+        # If the case differs, use the correct case for authenticate()
+        if existing_user.username != username:
+            logger.info(f'Login for "{username}" -> corrected case to "{existing_user.username}"')
+            username = existing_user.username
+    except User.DoesNotExist:
+        pass  # Will handle below after authenticate()
+    
     user = authenticate(username=username, password=password)
     if user is None:
-        # Debug: check if the user exists and has a valid password
+        # Debug: check if the user exists (case-insensitive) and has a valid password
         try:
-            existing_user = User.objects.get(username=username)
+            existing_user = User.objects.get(username__iexact=username)
             logger.warning(f'Login failed for {username}: user exists but auth failed. '
                           f'is_active={existing_user.is_active}, '
                           f'password_set={bool(existing_user.password)}, '
@@ -239,7 +252,19 @@ def token_obtain_pair_with_credentials(request):
                     status=status.HTTP_403_FORBIDDEN
                 )
         except User.DoesNotExist:
-            logger.warning(f'Login failed for {username}: user does not exist')
+            # User truly does not exist — log all existing users for debugging
+            all_usernames = list(User.objects.values_list('username', flat=True))
+            user_count = User.objects.count()
+            logger.warning(f'Login failed for {username}: user does not exist. '
+                          f'Total users in DB: {user_count}. '
+                          f'Existing usernames: {all_usernames}')
+            # Check if running on Vercel with ephemeral SQLite — common cause of "user not found"
+            on_vercel = os.getenv('VERCEL', '').lower() in ('true', '1', 'yes')
+            db_url = os.getenv('DATABASE_URL', '')
+            if on_vercel and not db_url:
+                logger.warning('WARNING: Running on Vercel without DATABASE_URL! '
+                              'SQLite in /tmp/ is ephemeral — each cold start loses all data. '
+                              'Set DATABASE_URL to a PostgreSQL database for persistent storage.')
         
         return Response(
             {'error': 'Invalid username or password.'},
