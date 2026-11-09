@@ -1,16 +1,18 @@
 """
-Middleware to dynamically trust request origins on Vercel deployments.
+Middleware for Vercel deployments and JWT token authentication.
 
-Django's CSRF_TRUSTED_ORIGINS setting doesn't support wildcards for arbitrary
-custom domains. This middleware adds the request's origin to CSRF_TRUSTED_ORIGINS
-at runtime when running on Vercel, so custom domains work without manual configuration.
-
-Also ensures that Vercel's HTTPS requests are properly recognized as secure,
-since Vercel terminates SSL at the edge and may not always send X-Forwarded-Proto.
+1. VercelOriginTrustMiddleware — dynamically trusts request origins on Vercel.
+2. TokenAuthenticationMiddleware — validates JWT tokens from the Authorization
+   header and sets request.user, so all Django views work with token-based auth.
+   This solves the Vercel serverless session problem where each function instance
+   has a separate /tmp/ database and can't share session data.
 """
 
 import os
 from django.conf import settings
+from django.contrib.auth.models import AnonymousUser
+from rest_framework_simplejwt.tokens import AccessToken
+from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
 
 
 class VercelOriginTrustMiddleware:
@@ -44,6 +46,54 @@ class VercelOriginTrustMiddleware:
             
             if origin not in settings.CSRF_TRUSTED_ORIGINS:
                 settings.CSRF_TRUSTED_ORIGINS.append(origin)
+        
+        response = self.get_response(request)
+        return response
+
+
+class TokenAuthenticationMiddleware:
+    """
+    Extract JWT token from the Authorization header and authenticate the user.
+    
+    This middleware runs before Django's AuthenticationMiddleware, so it can
+    set request.user for all views. It checks for a Bearer token in the
+    Authorization header and validates it against the JWT secret.
+    
+    This is the key fix for the Vercel serverless session problem: instead of
+    relying on server-side sessions (which are lost across cold starts), the
+    user's identity is carried in a signed JWT token stored on the client.
+    """
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        # Only process token auth if a Bearer token is present
+        auth_header = request.META.get('HTTP_AUTHORIZATION', '')
+        
+        if auth_header.startswith('Bearer '):
+            token_str = auth_header[7:]  # Strip 'Bearer ' prefix
+            try:
+                # Validate and decode the JWT token
+                token = AccessToken(token_str)
+                user_id = token['user_id']
+                
+                # Look up the user from the database
+                from django.contrib.auth import get_user_model
+                User = get_user_model()
+                try:
+                    user = User.objects.get(pk=user_id, is_active=True)
+                    request.user = user
+                except User.DoesNotExist:
+                    request.user = AnonymousUser()
+            except (InvalidToken, TokenError, KeyError, ValueError):
+                # Token is invalid or expired — fall through to session auth
+                request.user = AnonymousUser()
+        else:
+            # No Bearer token — let Django's session auth handle it
+            # Set as AnonymousUser initially; Django's AuthenticationMiddleware
+            # will override this with the session-based user
+            pass
         
         response = self.get_response(request)
         return response

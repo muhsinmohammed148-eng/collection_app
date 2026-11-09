@@ -8,7 +8,7 @@
         <h3><i class="bi bi-credit-card" style="color:var(--indigo-600)"></i> PayFlow</h3>
         <p>Create your account</p>
     </div>
-    <form method="post">
+    <form id="registerForm" method="post">
         {% csrf_token %}
         {% if form.non_field_errors %}
         <div class="alert-custom alert-danger">{{ form.non_field_errors.0 }}</div>
@@ -49,7 +49,7 @@
             <div class="form-error">{{ form.company_name.errors.0 }}</div>
             {% endif %}
         </div>
-        <button type="submit" class="btn btn-primary btn-block" style="padding:0.75rem;">Create Account</button>
+        <button type="submit" class="btn btn-primary btn-block" style="padding:0.75rem;" id="registerBtn">Create Account</button>
     </form>
     <div class="auth-footer">
         <p>Already have an account? <a href="{% url 'accounts:login' %}">Sign In</a></p>
@@ -62,5 +62,81 @@
 document.querySelectorAll('input[type="text"],input[type="email"],input[type="password"]').forEach(function(el){
     if(!el.className) el.className = 'form-control-custom';
 });
+
+// Intercept register form: submit via server (creates user), then obtain JWT tokens
+(function() {
+    'use strict';
+    var form = document.getElementById('registerForm');
+    if (!form) return;
+
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        var btn = document.getElementById('registerBtn');
+        if (btn) btn.disabled = true;
+
+        var formData = new FormData(form);
+
+        // First, submit the form to the server to create the account (Django handles validation)
+        fetch('{% url "accounts:register" %}', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': formData.get('csrfmiddlewaretoken') || ''
+            },
+            body: formData
+        }).then(function(res) {
+            // If server redirects (200 with HTML), registration succeeded
+            return res.text().then(function(text) {
+                // Check if response contains the dashboard (success) or the form again (errors)
+                if (text.indexOf('dashboard') !== -1 || text.indexOf('Account created') !== -1 || res.redirected) {
+                    return { success: true, html: text };
+                }
+                // Check for error messages in the response
+                if (text.indexOf('alert-danger') !== -1 || text.indexOf('form-error') !== -1) {
+                    // Replace the form content with the server's error response
+                    throw new Error('FORM_ERROR');
+                }
+                throw new Error('Registration failed');
+            });
+        }).then(function(result) {
+            // Registration succeeded — now obtain JWT tokens
+            var username = form.querySelector('input[name="username"]').value;
+            var password = form.querySelector('input[name="password1"]').value;
+
+            return fetch('/api/auth/login/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ username: username, password: password })
+            }).then(function(res) {
+                if (res.ok) return res.json();
+                throw new Error('Could not obtain authentication token');
+            });
+        }).then(function(data) {
+            // Store JWT tokens
+            if (window.PayFlowAuth) {
+                window.PayFlowAuth.setTokens(data.access, data.refresh);
+                if (data.profile && data.profile.tenant) {
+                    window.PayFlowAuth.setCurrentTenantId(data.profile.tenant.id);
+                }
+            }
+            window.location.href = '{% url "reports:dashboard" %}';
+        }).catch(function(err) {
+            if (err.message === 'FORM_ERROR') {
+                // Reload the page to show server-side validation errors
+                // Re-submit the form the traditional way
+                form.submit();
+                return;
+            }
+            var existing = form.querySelector('.alert-custom');
+            if (existing) existing.remove();
+            var alertDiv = document.createElement('div');
+            alertDiv.className = 'alert-custom alert-danger';
+            alertDiv.textContent = err.message || 'Registration failed.';
+            form.insertBefore(alertDiv, form.firstChild);
+            if (btn) btn.disabled = false;
+        });
+    });
+})();
 </script>
 {% endblock %}

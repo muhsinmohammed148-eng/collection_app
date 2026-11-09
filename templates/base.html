@@ -8,6 +8,9 @@
     <link rel="icon" type="image/svg+xml" href="{% static 'img/favicon.svg' %}">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
     <link href="{% static 'css/style.css' %}" rel="stylesheet">
+    {% if user.is_authenticated and current_tenant %}
+    <meta name="current-tenant-id" content="{{ current_tenant.pk }}">
+    {% endif %}
     {% block extra_css %}{% endblock %}
 </head>
 <body>
@@ -62,17 +65,13 @@
                 {% if user.profile.is_superadmin %}
                 <!-- Tenant Switcher Dropdown -->
                 <div class="tenant-switcher-wrapper">
-                    <form method="post" action="{% url 'accounts:tenant_switch' %}" class="tenant-switcher-form">
-                        {% csrf_token %}
-                        <input type="hidden" name="next" value="{{ request.get_full_path }}">
-                        <select name="tenant_id" class="tenant-switcher-select" onchange="this.form.submit()">
-                            {% for t in user.profile.accessible_tenants %}
-                            <option value="{{ t.pk }}"{% if t.pk == current_tenant.pk %} selected{% endif %}>
-                                {{ t.name }}
-                            </option>
-                            {% endfor %}
-                        </select>
-                    </form>
+                    <select id="tenantSwitcherDesktop" class="tenant-switcher-select">
+                        {% for t in user.profile.accessible_tenants %}
+                        <option value="{{ t.pk }}"{% if t.pk == current_tenant.pk %} selected{% endif %}>
+                            {{ t.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
                 </div>
                 {% endif %}
                 <a href="{% url 'members:payment_record' %}" class="btn-record">
@@ -100,17 +99,13 @@
         <div class="mobile-nav" id="mobileNav">
             {% if user.profile.is_superadmin %}
             <div class="mobile-tenant-switcher">
-                <form method="post" action="{% url 'accounts:tenant_switch' %}">
-                    {% csrf_token %}
-                    <input type="hidden" name="next" value="{{ request.get_full_path }}">
-                    <select name="tenant_id" class="tenant-switcher-select" onchange="this.form.submit()">
-                        {% for t in user.profile.accessible_tenants %}
-                        <option value="{{ t.pk }}"{% if t.pk == current_tenant.pk %} selected{% endif %}>
-                            🏢 {{ t.name }}
-                        </option>
-                        {% endfor %}
-                    </select>
-                </form>
+                <select id="tenantSwitcherMobile" class="tenant-switcher-select">
+                    {% for t in user.profile.accessible_tenants %}
+                    <option value="{{ t.pk }}"{% if t.pk == current_tenant.pk %} selected{% endif %}>
+                        🏢 {{ t.name }}
+                    </option>
+                    {% endfor %}
+                </select>
             </div>
             {% endif %}
             <a href="{% url 'reports:dashboard' %}" class="{% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">
@@ -219,7 +214,48 @@
     </div>
     {% endif %}
 
+    <script src="{% static 'js/auth.js' %}"></script>
     <script src="{% static 'js/main.js' %}"></script>
+
+    {% if user.is_authenticated %}
+    <script>
+    // JWT-aware logout: blacklist token then redirect
+    (function() {
+        'use strict';
+        var logoutLinks = document.querySelectorAll('a[href*="/accounts/logout/"]');
+        logoutLinks.forEach(function(link) {
+            link.addEventListener('click', function(e) {
+                e.preventDefault();
+                if (window.PayFlowAuth) {
+                    window.PayFlowAuth.logout();
+                }
+                window.location.href = '{% url "accounts:logout" %}';
+            });
+        });
+    })();
+
+    // JWT-aware tenant switcher: store tenant ID in localStorage and reload
+    (function() {
+        'use strict';
+        var switchers = [
+            document.getElementById('tenantSwitcherDesktop'),
+            document.getElementById('tenantSwitcherMobile')
+        ];
+        switchers.forEach(function(select) {
+            if (!select) return;
+            select.addEventListener('change', function() {
+                var tenantId = select.value;
+                if (window.PayFlowAuth) {
+                    window.PayFlowAuth.setCurrentTenantId(tenantId);
+                }
+                // Reload page so the server re-renders with the new tenant context
+                window.location.reload();
+            });
+        });
+    })();
+    </script>
+    {% endif %}
+
     {% block extra_js %}{% endblock %}
 </body>
 </html>

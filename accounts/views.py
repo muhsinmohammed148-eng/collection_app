@@ -68,12 +68,16 @@ def user_logout(request):
 def _get_current_tenant(request):
     """
     Return the active tenant for the current request.
-    - Superadmins: use the session-stored tenant (switchable).
+    - Superadmins: check X-Current-Tenant-Id header first (set by auth.js from
+      localStorage), then fall back to session, then to profile default.
     - Everyone else: use their profile's default tenant.
     """
     profile = request.user.profile
     if profile.is_superadmin:
-        tenant_id = request.session.get('current_tenant_id')
+        # Check HTTP header first (set by frontend auth.js from localStorage)
+        tenant_id = request.headers.get('X-Current-Tenant-Id')
+        if not tenant_id:
+            tenant_id = request.session.get('current_tenant_id')
         if tenant_id:
             try:
                 tenant = Tenant.objects.get(pk=tenant_id, is_active=True)
@@ -136,16 +140,24 @@ def tenant_detail(request, pk):
 
 @login_required
 def tenant_switch(request):
-    """Switch the current tenant view (superadmin only)."""
+    """Switch the current tenant view (superadmin only).
+
+    Supports both traditional form POST (sets session) and AJAX requests
+    that carry the tenant ID in the X-Current-Tenant-Id header (set by
+    auth.js from localStorage). The session is still updated as a fallback
+    for non-JWT requests.
+    """
     profile = request.user.profile
     if not profile.is_superadmin:
         messages.error(request, 'Only superadmins can switch tenants.')
         return redirect('reports:dashboard')
 
-    if request.method == 'POST':
-        tenant_id = request.POST.get('tenant_id')
+    # Accept tenant_id from POST (form) or from the header (JWT flow)
+    tenant_id = request.POST.get('tenant_id') or request.headers.get('X-Current-Tenant-Id')
+    if tenant_id:
         try:
             tenant = Tenant.objects.get(pk=tenant_id, is_active=True)
+            # Still write to session as fallback for non-JWT requests
             request.session['current_tenant_id'] = tenant.pk
             messages.success(request, f'Switched to "{tenant.name}".')
         except Tenant.DoesNotExist:

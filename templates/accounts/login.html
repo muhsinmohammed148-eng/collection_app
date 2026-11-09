@@ -8,7 +8,7 @@
         <h3><i class="bi bi-credit-card" style="color:var(--indigo-600)"></i> PayFlow</h3>
         <p>Sign in to your account</p>
     </div>
-    <form method="post">
+    <form id="loginForm" method="post">
         {% csrf_token %}
         {% if form.non_field_errors %}
         <div class="alert-custom alert-danger">{{ form.non_field_errors.0 }}</div>
@@ -27,7 +27,7 @@
             <div class="form-error">{{ form.password.errors.0 }}</div>
             {% endif %}
         </div>
-        <button type="submit" class="btn btn-primary btn-block" style="padding:0.75rem;">Sign In</button>
+        <button type="submit" class="btn btn-primary btn-block" style="padding:0.75rem;" id="loginBtn">Sign In</button>
     </form>
     <div class="auth-footer">
         <p>Don't have an account? <a href="{% url 'accounts:register' %}">Register</a></p>
@@ -40,5 +40,60 @@
 document.querySelectorAll('input[type="text"],input[type="password"]').forEach(function(el){
     if(!el.className) el.className = 'form-control-custom';
 });
+
+// Intercept login form to obtain JWT tokens
+(function() {
+    'use strict';
+    var form = document.getElementById('loginForm');
+    if (!form) return;
+
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        var btn = document.getElementById('loginBtn');
+        if (btn) btn.disabled = true;
+
+        var username = form.querySelector('input[name="username"]').value;
+        var password = form.querySelector('input[name="password"]').value;
+        var csrfToken = '';
+        var csrfMeta = document.querySelector('input[name="csrfmiddlewaretoken"]');
+        if (csrfMeta) csrfToken = csrfMeta.value;
+
+        fetch('/api/auth/login/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({ username: username, password: password })
+        }).then(function(res) {
+            if (res.ok) return res.json();
+            return res.json().then(function(data) { throw new Error(data.error || 'Login failed'); });
+        }).then(function(data) {
+            // Store JWT tokens
+            if (window.PayFlowAuth) {
+                window.PayFlowAuth.setTokens(data.access, data.refresh);
+                // Store tenant ID for superadmins
+                if (data.profile && data.profile.is_superadmin && data.profile.tenant) {
+                    window.PayFlowAuth.setCurrentTenantId(data.profile.tenant.id);
+                }
+            }
+            // Redirect to dashboard
+            var redirectUrl = '{% url "reports:dashboard" %}';
+            if (data.profile && data.profile.role === 'member') {
+                redirectUrl = '/members/my-dashboard/';
+            }
+            window.location.href = redirectUrl;
+        }).catch(function(err) {
+            // Show error message
+            var existing = form.querySelector('.alert-custom');
+            if (existing) existing.remove();
+            var alertDiv = document.createElement('div');
+            alertDiv.className = 'alert-custom alert-danger';
+            alertDiv.textContent = err.message || 'Invalid username or password.';
+            form.insertBefore(alertDiv, form.firstChild);
+            if (btn) btn.disabled = false;
+        });
+    });
+})();
 </script>
 {% endblock %}
