@@ -38,7 +38,11 @@ allowed_hosts = os.getenv('ALLOWED_HOSTS', '')
 if allowed_hosts:
     ALLOWED_HOSTS = [h.strip() for h in allowed_hosts.split(',') if h.strip()]
 else:
-    ALLOWED_HOSTS = ['localhost', '127.0.0.1', 'testserver']
+    ALLOWED_HOSTS = ['localhost', '127.0.0.1']
+
+# Always allow testserver for Django test client
+if 'testserver' not in ALLOWED_HOSTS:
+    ALLOWED_HOSTS.append('testserver')
 
 # Always add Vercel URL if available (Vercel sets this automatically)
 vercel_url = os.getenv('VERCEL_URL', '')

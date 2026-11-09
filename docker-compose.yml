@@ -1,0 +1,54 @@
+version: '3.8'
+
+services:
+  # PostgreSQL database
+  db:
+    image: postgres:16-alpine
+    container_name: payflow_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: payflow
+      POSTGRES_USER: payflow
+      POSTGRES_PASSWORD: payflow_password
+    # Port mapping removed — Django connects via Docker internal network (service name: db)
+    # Uncomment below if you need direct DB access from host:
+    # ports:
+    #   - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U payflow -d payflow"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # Django application
+  web:
+    build: .
+    container_name: payflow_web
+    restart: unless-stopped
+    command: >
+      sh -c "
+        python manage.py migrate &&
+        python manage.py collectstatic --noinput &&
+        python manage.py runserver 0.0.0.0:8000
+      "
+    volumes:
+      - .:/app
+    ports:
+      - "8000:8000"
+    environment:
+      - DEBUG=True
+      - SECRET_KEY=django-insecure-docker-dev-key-change-in-production
+      - DATABASE_URL=postgres://payflow:payflow_password@db:5432/payflow
+      - DB_SSLMODE=disable
+      - ALLOWED_HOSTS=localhost,127.0.0.1,web
+    depends_on:
+      db:
+        condition: service_healthy
+    stdin_open: true
+    tty: true
+
+volumes:
+  postgres_data:

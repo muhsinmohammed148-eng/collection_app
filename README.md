@@ -16,13 +16,63 @@ A Django-based web application for managing member dues, tracking payments, and 
 ## Tech Stack
 
 - **Backend**: Django 5.2
-- **Database**: SQLite (development), PostgreSQL (production)
+- **Database**: PostgreSQL (Docker), SQLite (local development)
 - **Frontend**: Django templates with Bootstrap 5
 - **Icons**: Bootstrap Icons
 - **Static Files**: WhiteNoise
+- **Local Development**: Docker Compose
 - **Deployment**: Vercel
 
 ## Quick Start
+
+### Option 1: Docker (Recommended — Everything in One Command)
+
+**Prerequisites:** [Docker](https://docs.docker.com/get-docker/) and [Docker Compose](https://docs.docker.com/compose/) installed.
+
+```bash
+# Start the application (builds image, starts database, runs migrations)
+docker-compose up --build
+
+# Or run in the background
+docker-compose up -d --build
+```
+
+The app will be available at `http://localhost:8000/`
+
+**What this does:**
+- Starts a PostgreSQL database container (`payflow_db`)
+- Builds and starts the Django app container (`payflow_web`)
+- Runs database migrations automatically
+- Collects static files
+- Runs the development server on port 8000
+
+**Useful Docker commands:**
+
+```bash
+# Stop all containers
+docker-compose down
+
+# Stop and remove data volumes (resets database)
+docker-compose down -v
+
+# View logs
+docker-compose logs -f web
+
+# Run Django commands inside the container
+docker-compose exec web python manage.py createsuperuser
+docker-compose exec web python manage.py test
+docker-compose exec web python manage.py shell
+
+# Access the database
+docker-compose exec db psql -U payflow -d payflow
+```
+
+**Create a superuser:**
+```bash
+docker-compose exec web python manage.py createsuperuser
+```
+
+### Option 2: Local Development (No Docker)
 
 ### 1. Install Dependencies
 
@@ -30,7 +80,7 @@ A Django-based web application for managing member dues, tracking payments, and 
 pip install -r requirements.txt
 ```
 
-### 2. Set Up Environment Variables (Optional for Development)
+### 2. Set Up Environment Variables
 
 ```bash
 cp .env.example .env
@@ -137,6 +187,9 @@ Or connect to your database directly and create a user via Django shell.
 ## Project Structure
 
 ```
+├── Dockerfile              # Docker image for Django app
+├── docker-compose.yml      # Docker Compose: PostgreSQL + Django
+├── .dockerignore           # Files to exclude from Docker build
 ├── accounts/               # User authentication & profiles
 ├── members/                # Member & payment models, views, forms
 ├── payflow/                # Django project settings & URLs
@@ -149,6 +202,9 @@ Or connect to your database directly and create a user via Django shell.
 │   ├── accounts/
 │   ├── members/
 │   └── reports/
+├── vercel.json             # Vercel deployment configuration
+├── build_files.sh          # Build script for Vercel
+├── requirements.txt        # Python dependencies
 └── manage.py
 ```
 

@@ -80,8 +80,18 @@ def create_user_profile(sender, instance, created, **kwargs):
             name='Default Company',
             defaults={'name': 'Default Company'}
         )
+        # Determine role and superadmin status from Django's is_superuser flag
+        is_superadmin = instance.is_superuser
+        role = 'admin' if instance.is_superuser else 'viewer'
         # Use get_or_create to avoid IntegrityError if profile already exists
-        Profile.objects.get_or_create(user=instance, defaults={'tenant': default_tenant})
+        Profile.objects.get_or_create(
+            user=instance,
+            defaults={
+                'tenant': default_tenant,
+                'role': role,
+                'is_superadmin': is_superadmin,
+            }
+        )
 
 
 @receiver(post_save, sender=User)
