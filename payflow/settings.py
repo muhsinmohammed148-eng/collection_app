@@ -153,6 +153,11 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
+# WhiteNoise: enable finders mode so it serves static files directly from
+# STATICFILES_DIRS (the static/ folder) without requiring collectstatic.
+# This is essential for Vercel serverless where collectstatic may not run.
+WHITENOISE_USE_FINDERS = True
+
 ROOT_URLCONF = 'payflow.urls'
 
 TEMPLATES = [
@@ -255,15 +260,19 @@ USE_TZ = True
 
 STATIC_URL = 'static/'
 STATICFILES_DIRS = [BASE_DIR / 'static']
-# On Vercel, /tmp is the only writable directory for collectstatic output
+# Static files root — WhiteNoise serves directly from STATICFILES_DIRS on Vercel
+# without needing collectstatic, so STATIC_ROOT is only needed for non-Vercel environments
 if ON_VERCEL:
-    STATIC_ROOT = '/tmp/staticfiles'
+    STATIC_ROOT = BASE_DIR / 'staticfiles'
 else:
     STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 # WhiteNoise configuration for serving static files in production
-# Use CompressedManifestStaticFilesStorage in production, simpler storage in dev/tests
-if not DEBUG:
+# On Vercel, WhiteNoise serves directly from STATICFILES_DIRS (the static/ folder)
+# without requiring collectstatic — this avoids the need for a build step
+if ON_VERCEL:
+    STATICFILES_STORAGE = 'whitenoise.storage.StaticFilesStorage'
+elif not DEBUG:
     STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 else:
     STATICFILES_STORAGE = 'whitenoise.storage.StaticFilesStorage'

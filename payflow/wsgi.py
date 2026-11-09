@@ -21,17 +21,15 @@ application = get_wsgi_application()
 app = application
 
 
-# On Vercel, run migrations and collect static files on cold start
-# since the build step does not run these commands.
-# This runs once per function cold start.
+# On Vercel, run migrations on cold start since the database is in /tmp.
+# Static files are collected during the build phase, not at runtime.
 on_vercel = os.getenv('VERCEL', '').lower() in ('true', '1', 'yes')
 if on_vercel:
-    # Find manage.py location (project root)
     import pathlib
     project_root = pathlib.Path(__file__).resolve().parent.parent
     
     try:
-        # Run migrations first (required for SQLite in /tmp)
+        # Run migrations (required for SQLite in /tmp)
         subprocess.run(
             [sys.executable, str(project_root / 'manage.py'), 'migrate', '--noinput'],
             check=True,
@@ -39,16 +37,4 @@ if on_vercel:
             cwd=str(project_root),
         )
     except Exception:
-        pass
-    
-    try:
-        # Collect static files for WhiteNoise
-        subprocess.run(
-            [sys.executable, str(project_root / 'manage.py'), 'collectstatic', '--noinput'],
-            check=True,
-            capture_output=True,
-            cwd=str(project_root),
-        )
-    except Exception:
-        # If collectstatic fails, the app will still work but static files may be missing
         pass
